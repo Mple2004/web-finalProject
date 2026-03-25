@@ -18,3 +18,5 @@ import NavBar from './components/NavBar.vue'
 import HeroSection from './components/HeroSec.vue'
 import FeaturedSection from './components/mainProduct.vue'
 </script>
+
+<!-- Test Git  -->
