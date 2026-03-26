@@ -182,3 +182,60 @@ export const getSearchProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ฟังก์ชันค้นหาสินค้าแบบกรองหลายเงื่อนไข (Filter)
+export const getFilteredProducts = async (req, res) => {
+  console.log("GET /products/filter", req.query);
+  try {
+    // 1. รับค่าที่ส่งมาจาก Frontend ผ่าน Query Parameters
+    // ตัวอย่าง URL: ?category=Whisky&country=Scotland&minPrice=500&maxPrice=2500
+    const { category, subcategory, country, minPrice, maxPrice } = req.query;
+
+    // 2. ตั้งต้นคำสั่ง SQL (1=1 คือเทคนิคให้ต่อ AND ได้ง่ายๆ)
+    let text = `SELECT * FROM products WHERE 1=1`;
+    let values = [];
+    let paramIndex = 1;
+
+    // 3. เช็คว่ามีค่าไหนส่งมาบ้าง ถ้ามีก็เอาไปต่อท้ายคำสั่ง SQL
+    if (category) {
+      text += ` AND "pdCategory" ILIKE $${paramIndex}`;
+      values.push(`%${category}%`);
+      paramIndex++;
+    }
+
+    if (subcategory) {
+      text += ` AND "pdSubCategory" ILIKE $${paramIndex}`;
+      values.push(`%${subcategory}%`);
+      paramIndex++;
+    }
+
+    if (country) {
+      text += ` AND "pdCountry" ILIKE $${paramIndex}`;
+      values.push(`%${country}%`);
+      paramIndex++;
+    }
+
+    if (minPrice) {
+      text += ` AND "pdPrice" >= $${paramIndex}`;
+      values.push(minPrice);
+      paramIndex++;
+    }
+
+    if (maxPrice) {
+      text += ` AND "pdPrice" <= $${paramIndex}`;
+      values.push(maxPrice);
+      paramIndex++;
+    }
+
+    // จัดเรียงตาม ID ปิดท้าย
+    text += ` ORDER BY "pdID" ASC`;
+
+    // 4. สั่งรัน SQL
+    const result = await database.query({ text, values });
+    res.status(200).json(result.rows);
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
