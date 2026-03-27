@@ -141,7 +141,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
-import { MOCK_PRODUCTS } from '../data/mockData'
 import { useCart } from '../stores/cart'
 import { useToast } from '../stores/toast'
 import { useAuth } from '../stores/auth'
@@ -155,21 +154,51 @@ const auth = useAuth()
 const loginModal = useLoginModal()
 
 const allProducts = ref([])
+const product = ref(null)
 const qty = ref(1)
 const showSpecs = ref(false)
 const showShip = ref(false)
 const mainImage = ref('')
 
-const product = computed(() => allProducts.value.find(p => p.id === parseInt(route.params.id)) || null)
+// แปลง field จาก DB ให้ตรงกับ template
+function mapProduct(p) {
+  return {
+    id: p.pdID,
+    name: p.pdName,
+    category: p.pdCategory,
+    subcategory: p.pdSubCategory,
+    brand: p.pdBrand,
+    region: p.pdCountry,
+    price: Number(p.pdPrice),
+    volume: p.pdSize ? `${p.pdSize}ml` : '',
+    abv: '',
+    description: `${p.pdBrand} — ${p.pdSubCategory} จาก ${p.pdCountry}`,
+    image: p.pdImage || `https://placehold.co/600x600?text=${encodeURIComponent(p.pdName)}`,
+    tag: null,
+    reviews: 0,
+    rating: 4,
+    nose: '',
+    palate: '',
+    oldPrice: null,
+  }
+}
+
 const thumbImages = computed(() => {
   if (!product.value) return []
-  const others = allProducts.value.filter(p => p.id !== product.value.id).slice(0, 2).map(p => p.image)
+  const others = allProducts.value
+    .filter(p => p.id !== product.value.id)
+    .slice(0, 2)
+    .map(p => p.image)
   return [product.value.image, ...others]
 })
+
 const relatedProducts = computed(() => {
   if (!product.value) return []
-  return allProducts.value.filter(p => p.subcategory === product.value.subcategory && p.id !== product.value.id).slice(0, 4)
+  return allProducts.value
+    .filter(p => p.subcategory === product.value.subcategory && p.id !== product.value.id)
+    .slice(0, 4)
 })
+
 const tagLabel = computed(() => {
   const t = product.value?.tag
   if (t === 'rare') return 'Rare Find'
@@ -178,22 +207,41 @@ const tagLabel = computed(() => {
   return t
 })
 
-watch(product, p => { if (p) { mainImage.value = p.image; qty.value = 1; showSpecs.value = false; showShip.value = false } }, { immediate: true })
+watch(product, p => {
+  if (p) { mainImage.value = p.image; qty.value = 1; showSpecs.value = false; showShip.value = false }
+}, { immediate: true })
 
 function addProduct() {
   if (!product.value) return
-  if (!auth.isLoggedIn.value) {
-    loginModal.show()
-    return
-  }
+  if (!auth.isLoggedIn.value) { loginModal.show(); return }
   for (let i = 0; i < qty.value; i++) cart.add(product.value)
   toast.show(`✓ Added ${qty.value}x "${product.value.name}"`)
 }
-function goTo(id) { router.push(`/product/${id}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
+function goTo(id) {
+  router.push(`/product/${id}`)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// แก้: ดึงสินค้าจาก API จริง
 onMounted(async () => {
-  const data = await api.getProducts()
-  allProducts.value = data || MOCK_PRODUCTS
+  try {
+    const id = route.params.id
+
+    // ดึงสินค้าเดี่ยวตาม ID
+    const data = await api.getProductById(id)
+    if (Array.isArray(data) && data.length > 0) {
+      product.value = mapProduct(data[0])
+      mainImage.value = product.value.image
+    }
+
+    // ดึงสินค้าทั้งหมดสำหรับ related products
+    const allData = await api.getProducts()
+    allProducts.value = Array.isArray(allData) ? allData.map(mapProduct) : []
+
+  } catch (err) {
+    console.error('ProductDetail load error:', err.message)
+  }
 })
 </script>
 

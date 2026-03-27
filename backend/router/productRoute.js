@@ -25,9 +25,9 @@ router.get("/products/three", getThreeProducts);
 router.get("/products/category/:category", getProductByCategory);
 router.get("/products/subcategory/:subcategory", getProductBySubCategory);
 router.get("/products/country/:country", getProductByCountry);
-router.get("/products/price", getProductByPriceRange);
+router.get("/products/price", getProductByPriceRange); //sort ตามช่วงราคา โดยรับ min และ max ผ่าน Query String (?min=xxx&max=yyy)
 router.get("/products", getAllProducts);
-router.post("/products", postProduct);
+router.post("/products", postProduct); 
 router.get("/products/brands/:id", getProductByBrandId);
 router.get("/products/:id", getProductById);
 router.put("/products/:id", putProduct);

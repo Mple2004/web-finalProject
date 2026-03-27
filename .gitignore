@@ -39,4 +39,4 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
-src/backend/.env
+backend\.env

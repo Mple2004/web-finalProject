@@ -81,7 +81,7 @@ const error = ref('')
 async function handleSubmit() {
   error.value = ''
   loading.value = true
-  const result = auth.login(form.email, form.password)
+  const result = await auth.login(form.email, form.password)  // เพิ่ม await
   loading.value = false
 
   if (result.success) {

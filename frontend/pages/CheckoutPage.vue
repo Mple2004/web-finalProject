@@ -303,38 +303,30 @@ function validate() {
   return Object.keys(errors).length === 0
 }
 
+//ple
 async function handlePlaceOrder() {
   if (!validate()) return
   placing.value = true
-  await new Promise(r => setTimeout(r, 1000))
 
-  const orderId = `ORD-${Date.now().toString().slice(-5)}`
-  const snapshot = cart.state.items.map(i => ({ ...i }))
-  const subtotal = cart.total.value
+  try {
+    const res = await cart.checkout(auth.user.value.email)
 
-  const newOrder = {
-    id: orderId,
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    status: 'Processing',
-    items: snapshot,
-    total: orderTotal.value,
-    shipping: {
-      name: `${form.firstName} ${form.lastName}`,
-      address: `${form.address1}${form.address2 ? ', ' + form.address2 : ''}, ${form.city}, ${form.state} ${form.zip}, ${form.country}`,
-    },
-    payMethod: form.payMethod,
+    if (res.success) {
+      placedOrderId.value = `ORD-${Date.now().toString().slice(-5)}`
+      placedItems.value = cart.state.items.length 
+        ? cart.state.items.map(i => ({ ...i })) 
+        : []
+      placedSubtotal.value = cart.total.value
+      orderPlaced.value = true
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      alert('Checkout failed: ' + res.message)
+    }
+  } catch (err) {
+    alert('Error: ' + err.message)
+  } finally {
+    placing.value = false
   }
-
-  orders.addOrder(auth.user.value.id, newOrder)
-
-  placedOrderId.value = orderId
-  placedItems.value = snapshot
-  placedSubtotal.value = subtotal
-
-  cart.clearCart()
-  placing.value = false
-  orderPlaced.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(() => {

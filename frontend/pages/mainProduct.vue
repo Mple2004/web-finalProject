@@ -166,7 +166,10 @@ const toast = useToast()
 const auth = useAuth()
 const loginModal = useLoginModal()
 
-const goToProduct = (id) => router.push(`/product/${id}`)
+//const goToProduct = (id) => router.push(`/product/${id}`)
+const goToProduct = (pdID) => {
+  router.push({ name: 'product-detail', params: { id: pdID } });
+};
 
 function addToCart(product) {
   if (!auth.isLoggedIn.value) {

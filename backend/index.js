@@ -8,12 +8,6 @@ import transactionRoute from "./router/transactionRoute.js";
 import cartRoute from "./router/cartRoute.js";
 import cookieParser from "cookie-parser";
 
-
-// import swaggerUI from "swagger-ui-express";
-// import yaml from "yaml";
-// ใช้ File
-// import fs from "fs";
-
 dotenv.config();
 
 const app = express();
@@ -31,15 +25,6 @@ app.use(productRoute);
 app.use(memberRoute);
 app.use(cartRoute);
 app.use(transactionRoute);
-
-// swagger กำหนด file config ของตัว swagger
-// const swaggerfile = fs.readFileSync("services/swagger.yaml", "utf-8");
-// const swaggerDoc = yaml.parse(swaggerfile);
-// กำหนด path ที่จะให้เรียกหน้า Document ขึ้นมา
-// app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerDoc));
-
-// app.use("/img_pd", express.static("img_pd"));
-// app.use("/img_mem", express.static("img_mem"));
 
 app.get("/", (req, res) => {
   res.json({ info: "Hello World", message: "Ok" });

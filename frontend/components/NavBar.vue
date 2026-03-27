@@ -9,9 +9,9 @@
 
       <!-- Links -->
       <div class="d-flex gap-4">
-        <a href="#" class="text-decoration-none" style="color:#a89880">Beer</a>
-        <a href="#" class="text-decoration-none" style="color:#a89880">Wine</a>
-        <a href="#" class="text-decoration-none" style="color:#a89880">Spirits</a>
+        <router-link to="/category/Beer" class="nav-link">Beer</router-link>
+        <router-link to="/category/Wine" class="nav-link">Wine</router-link>
+        <router-link to="/category/Spirits" class="nav-link">Spirits</router-link>
         <a href="#" class="text-decoration-none" style="color:#a89880">Contact Us</a>
       </div>
 
