@@ -106,3 +106,35 @@ export async function getOrderHistory(req, res) {
     return res.status(500).json({ success: false, error: err.message });
   }
 }
+
+// ในไฟล์ transactionController.js
+
+export async function getAdminSalesSummary(req, res) {
+  console.log(`GET /admin/sales-summary is requested`);
+  
+  // ตรวจสอบก่อนว่าเป็น Admin หรือไม่ (เช็คจาก Token)
+  if (req.user.status !== 'admin') {
+    return res.status(403).json({ message: "Forbidden: Admin only" });
+  }
+
+  try {
+    const result = await database.query({
+      text: `
+        SELECT 
+          COUNT(ct.cart_id) AS "totalOrders",
+          SUM(ctd.price * ctd.qty) AS "totalRevenue",
+          COUNT(DISTINCT ct.email) AS "totalCustomers"
+        FROM carts ct
+        JOIN "cartDtl" ctd ON ct.cart_id = ctd.cart_id
+        WHERE ct.status = 'paid'
+      `
+    });
+    
+    return res.json({ 
+      success: true, 
+      summary: result.rows[0] 
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}

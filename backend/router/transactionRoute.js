@@ -1,4 +1,5 @@
 import express from "express";
+import { getAdminSalesSummary } from "../controller/transactionController.js";
 import { checkout, getOrderHistory, getOrderDetail } from "../controller/transactionController.js";
 import { authenticateToken } from "../middleware/auth.js"; //
 
@@ -13,5 +14,5 @@ router.get("/transaction/history", authenticateToken, getOrderHistory); //
 
 // 3. ดูรายละเอียดเชิงลึกของแต่ละ Order
 router.get("/transaction/detail/:cart_id", authenticateToken, getOrderDetail); //
-
+router.get("/admin/sales-summary", authenticateToken, getAdminSalesSummary);
 export default router;
