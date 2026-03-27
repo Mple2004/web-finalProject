@@ -7,6 +7,7 @@ import memberRoute from "./router/memberRoute.js";
 import transactionRoute from "./router/transactionRoute.js";
 import cartRoute from "./router/cartRoute.js";
 import cookieParser from "cookie-parser";
+import wishlistRoute from "./router/wishlistRoute.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use(productRoute);
 app.use(memberRoute);
 app.use(cartRoute);
 app.use(transactionRoute);
+app.use(wishlistRoute);
 
 app.get("/", (req, res) => {
   res.json({ info: "Hello World", message: "Ok" });
