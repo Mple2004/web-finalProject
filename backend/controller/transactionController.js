@@ -1,0 +1,92 @@
+import database from "../services/database.js";
+
+// 1. ฟังก์ชันสำหรับยืนยันการชำระเงิน (Checkout)
+export async function checkout(req, res) {
+  console.log(`POST /transaction/checkout is requested`);
+  const { cart_id, email } = req.body;
+
+  try {
+    // 1. เช็คก่อนว่าตะกร้านี้มีอยู่จริงและยังไม่จ่ายเงิน (เหมือนเดิม)
+    const cartCheck = await database.query({
+      text: `SELECT * FROM carts WHERE cart_id = $1 AND email = $2 AND status = 'active'`,
+      values: [cart_id, email]
+    });
+
+    if (cartCheck.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "ไม่พบตะกร้าที่รอชำระเงิน" });
+    }
+
+    // --- ส่วนที่เพิ่มใหม่: ดึงรายการสินค้าในตะกร้ามาเตรียมตัดสต็อก ---
+    const itemsInCart = await database.query({
+      text: `SELECT "pdId", qty FROM "cartDtl" WHERE cart_id = $1`,
+      values: [cart_id]
+    });
+
+    // วนลูปเพื่อ UPDATE จำนวนสินค้าในตาราง products ทีละรายการ
+    // ... โค้ดส่วนอื่นๆ ใน checkout ...
+
+    // วนลูปเพื่อ UPDATE จำนวนสินค้าในสต็อก
+    for (let item of itemsInCart.rows) {
+      await database.query({
+        text: `UPDATE products SET stock_qty = stock_qty - $1 WHERE "pdID" = $2`, 
+        values: [item.qty, item.pdId]
+      });
+    }
+
+// ... โค้ดส่วนอื่นๆ ...
+    // -------------------------------------------------------
+
+    // 2. เปลี่ยนสถานะตะกร้าเป็น 'paid' เพื่อปิดยอด (เหมือนเดิม)
+    await database.query({
+      text: `UPDATE carts SET status = 'paid', updated_at = NOW() WHERE cart_id = $1`,
+      values: [cart_id]
+    });
+
+    return res.json({ 
+      success: true, 
+      message: "ชำระเงินและตัดสต็อกสินค้าเรียบร้อยแล้ว!" 
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// 2. ฟังก์ชันดูประวัติการสั่งซื้อที่จ่ายเงินไปแล้วทั้งหมด (Order History)
+export async function getOrderHistory(req, res) {
+  console.log(`POST /transaction/history is requested`);
+  const email = req.body.email;
+
+  try {
+    const result = await database.query({
+      text: `SELECT * FROM carts WHERE email = $1 AND status = 'paid' ORDER BY updated_at DESC`,
+      values: [email]
+    });
+    return res.json({ success: true, history: result.rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ฟังก์ชันดูรายละเอียดสินค้าข้างในตะกร้าที่จ่ายเงินแล้ว
+export async function getOrderDetail(req, res) {
+  const { cart_id } = req.params; // รับค่า cart_id จาก URL
+  try {
+    const result = await database.query({
+      text: `SELECT ctd.*, pd."pdName", pd."pdPrice"
+             FROM "cartDtl" ctd
+             JOIN products pd ON ctd."pdId" = pd."pdID"
+             WHERE ctd.cart_id = $1`,
+      values: [cart_id]
+    });
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "ไม่พบรายการสินค้าในตะกร้านี้" });
+    }
+
+    res.json({ success: true, items: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
