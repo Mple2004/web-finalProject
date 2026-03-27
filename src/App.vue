@@ -1,20 +1,24 @@
-<!-- template → ส่วนที่แสดงผล HTML -->
 <template>
-  <div style="background:#1a1108; min-height:100vh;">
-    <!--background:#1a1108 → สีพื้นหลังน้ำตาลเข้มทั้งหน้า-->
-    <!--min-height:100vh → ให้พื้นหลังสีเข้มเต็มหน้าจอ-->
-
+  <div class="app-container">
     <NavBar />
-    <HeroSection />
-    <FeaturedSection />
-    <!-- เรียกใช้ component ทั้ง 3 ตัว เรียงจากบนลงล่าง -->
+    <RouterView />
+    <CartSidebar />
+    <ToastNotification />
+    <LoginModal />
   </div>
 </template>
 
 <script setup>
-// <script setup> → ส่วน JavaScript 
-// import component ทั้ง 3 ตัวเข้ามาใช้
-import NavBar from './components/NavBar.vue'
-import HeroSection from './components/HeroSec.vue'
-import FeaturedSection from './components/mainProduct.vue'
+import { RouterView } from 'vue-router'
+import NavBar           from './components/NavBar.vue'
+import CartSidebar      from './components/CartSidebar.vue'
+import ToastNotification from './components/ToastNotification.vue'
+import LoginModal       from './components/LoginModal.vue'
 </script>
+
+<style>
+.app-container {
+  background-color: var(--bg-dark);
+  min-height: 100vh;
+}
+</style>
