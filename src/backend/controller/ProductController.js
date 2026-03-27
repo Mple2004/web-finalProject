@@ -239,3 +239,69 @@ export const getFilteredProducts = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getProductByCategory = async (req, res) => {
+  console.log(`GET /products/category/${req.params.category}`);
+  try {
+    const result = await database.query({
+      text: `SELECT * FROM products WHERE "pdCategory" ILIKE $1`,
+      values: [`${req.params.category}`], 
+    });
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getProductBySubCategory = async (req, res) => {
+  console.log(`GET /products/subcategory/${req.params.subcategory}`);
+  try {
+    const result = await database.query({
+      text: `SELECT * FROM products WHERE "pdSubCategory" ILIKE $1`,
+      values: [`${req.params.subcategory}`], 
+    });
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ค้นหาสินค้าตามประเทศ / ภูมิภาค (pdCountry)
+export const getProductByCountry = async (req, res) => {
+  console.log(`GET /products/country/${req.params.country}`);
+  try {
+    const result = await database.query({
+      // ใช้ ILIKE เพื่อให้ค้นหาได้ทั้งพิมพ์เล็กพิมพ์ใหญ่
+      text: `SELECT * FROM products WHERE "pdCountry" ILIKE $1`,
+      values: [`${req.params.country}`], 
+    });
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ค้นหาสินค้าตามช่วงราคา (Price Range)
+export const getProductByPriceRange = async (req, res) => {
+  // รับค่า min และ max จาก Query String (?min=xxx&max=yyy)
+  // ถ้าไม่ได้ส่งค่ามา จะตั้งค่าเริ่มต้นเป็น 0 ถึง 999,999
+  const minPrice = req.query.min || 0; 
+  const maxPrice = req.query.max || 999999; 
+
+  console.log(`GET /products/price?min=${minPrice}&max=${maxPrice}`);
+  
+  try {
+    const result = await database.query({
+      // ใช้คำสั่ง >= และ <= เพื่อกรองราคา และสั่งเรียงลำดับจากถูกไปแพง (ORDER BY ASC)
+      text: `SELECT * FROM products WHERE "pdPrice" >= $1 AND "pdPrice" <= $2 ORDER BY "pdPrice" ASC`,
+      values: [minPrice, maxPrice], 
+    });
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};

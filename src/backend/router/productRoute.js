@@ -9,9 +9,11 @@ import {
   getProductByBrandId,
   getThreeProducts,
   getSearchProduct,
-  // 1. นำเข้า 2 ฟังก์ชันใหม่ที่เราเพิ่งสร้าง
+  // นำเข้า 2 ฟังก์ชันใหม่
   getProductByCategory,
-  getProductBySubCategory 
+  getProductBySubCategory,
+  getProductByCountry,
+  getProductByPriceRange
 } from "../controller/ProductController.js";
 
 const router = express.Router();
@@ -19,10 +21,11 @@ const router = express.Router();
 router.get("/products/search/:id", getSearchProduct);
 router.get("/products/three", getThreeProducts);
 
-// 2. เพิ่ม 2 เส้นทางนี้เข้าไป เพื่อให้เรียกดูตามหมวดหมู่ได้
+// 2 เส้นทางนี้เอาไว้เรียกดูตามหมวดหมู่
 router.get("/products/category/:category", getProductByCategory);
 router.get("/products/subcategory/:subcategory", getProductBySubCategory);
-
+router.get("/products/country/:country", getProductByCountry);
+router.get("/products/price", getProductByPriceRange);
 router.get("/products", getAllProducts);
 router.post("/products", postProduct);
 router.get("/products/brands/:id", getProductByBrandId);
