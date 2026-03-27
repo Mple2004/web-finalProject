@@ -36,8 +36,8 @@ export const toggleWishlist = async (req, res) => {
 };
 
 export const getMyWishlist = async (req, res) => {
-  // 2. เปลี่ยนมารับค่า email จาก URL Parameter แทน (เพราะ GET ไม่มี Body)
-  const email = req.params.email; 
+  // ✅ เปลี่ยนจาก req.params.email มาเป็น req.user.email (ดึงจาก Token ที่ผ่านด่าน auth มาแล้ว)
+  const email = req.user.email; 
   console.log(`GET /wishlist for ${email}`);
 
   try {
