@@ -1,19 +1,24 @@
 <template>
   <div class="app-container">
-    <NavBar />
+    <!-- ซ่อน NavBar ในหน้า admin เพราะ AdminLayout มี header ของตัวเอง -->
+    <NavBar v-if="!isAdminRoute" />
     <RouterView />
-    <CartSidebar />
+    <CartSidebar v-if="!isAdminRoute" />
     <ToastNotification />
     <LoginModal />
   </div>
 </template>
 
 <script setup>
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, RouterView } from 'vue-router'
 import NavBar            from './components/NavBar.vue'
 import CartSidebar       from './components/CartSidebar.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import LoginModal        from './components/LoginModal.vue'
+
+const route = useRoute()
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 </script>
 
 <style>

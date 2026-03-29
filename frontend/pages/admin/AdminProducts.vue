@@ -23,6 +23,16 @@
         <form @submit.prevent="saveProduct" class="product-form">
         <div class="form-row">
           <div class="form-group">
+            <label>Product ID *</label>
+            <input v-model="formData.pdID" type="number" required :disabled="!!editingProduct">
+          </div>
+          <div class="form-group">
+            <label>Sub Category</label>
+            <input v-model="formData.pdSubCategory" type="text">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label>Product Name *</label>
             <input v-model="formData.pdName" type="text" required>
           </div>
@@ -171,60 +181,63 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { MOCK_PRODUCTS } from '../../data/mockData'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from '../../stores/toast'
+import api from '../../services/api'
 
 const toast = useToast()
-const products = ref([...MOCK_PRODUCTS])
+const products = ref([])
 const showForm = ref(false)
 const searchQuery = ref('')
 const filterCategory = ref('')
 const editingProduct = ref(null)
 const imageInput = ref(null)
+const isLoading = ref(false)
 
 const formData = ref({
+  pdID: '',
   pdName: '',
   pdCategory: '',
+  pdSubCategory: '',
   pdBrand: '',
   pdCountry: '',
   pdSize: '',
   pdPrice: '',
   stock_qty: '',
-  image: ''
 })
 
-// Filter products
+// ✅ โหลดสินค้าจาก API
+async function fetchProducts() {
+  isLoading.value = true
+  try {
+    const data = await api.adminGetProducts()
+    products.value = Array.isArray(data) ? data : []
+  } catch (err) {
+    toast.show('❌ Failed to load products')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => fetchProducts())
+
 const filteredProducts = computed(() => {
-  return products.value.filter(product => {
-    const matchSearch = !searchQuery.value || 
-      product.pdName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      product.pdBrand.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchCategory = !filterCategory.value || product.pdCategory === filterCategory.value
+  return products.value.filter(p => {
+    const matchSearch = !searchQuery.value ||
+      p.pdName?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      p.pdBrand?.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchCategory = !filterCategory.value || p.pdCategory === filterCategory.value
     return matchSearch && matchCategory
   })
 })
 
-// Reset form
 function resetForm() {
   showForm.value = false
   editingProduct.value = null
-  formData.value = {
-    pdName: '',
-    pdCategory: '',
-    pdBrand: '',
-    pdCountry: '',
-    pdSize: '',
-    pdPrice: '',
-    stock_qty: '',
-    image: ''
-  }
-  if (imageInput.value) {
-    imageInput.value.value = ''
-  }
+  formData.value = { pdID: '', pdName: '', pdCategory: '', pdSubCategory: '', pdBrand: '', pdCountry: '', pdSize: '', pdPrice: '', stock_qty: '' }
+  if (imageInput.value) imageInput.value.value = ''
 }
 
-// Edit product
 function editProduct(product) {
   editingProduct.value = product
   formData.value = { ...product }
@@ -232,57 +245,53 @@ function editProduct(product) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Save product
-function saveProduct() {
-  if (editingProduct.value) {
-    // Update existing product
-    const index = products.value.findIndex(p => p.pdID === editingProduct.value.pdID)
-    if (index !== -1) {
-      products.value[index] = { 
-        ...editingProduct.value, 
-        ...formData.value 
-      }
+async function saveProduct() {
+  try {
+    if (editingProduct.value) {
+      // ✅ UPDATE
+      await api.updateProduct(editingProduct.value.pdID, formData.value)
+      const index = products.value.findIndex(p => p.pdID === editingProduct.value.pdID)
+      if (index !== -1) products.value[index] = { ...editingProduct.value, ...formData.value }
       toast.show('✓ Product updated successfully')
+    } else {
+      // ✅ CREATE
+      if (!formData.value.pdID) {
+        toast.show('❌ Product ID is required')
+        return
+      }
+      const res = await api.addProduct(formData.value)
+      products.value.push(res)
+      toast.show('✓ Product added successfully')
     }
-  } else {
-    // Add new product
-    const newProduct = {
-      pdID: Math.max(...products.value.map(p => p.pdID)) + 1,
-      ...formData.value,
-      image: 'https://via.placeholder.com/300?text=' + formData.value.pdName
-    }
-    products.value.push(newProduct)
-    toast.show('✓ Product added successfully')
+    resetForm()
+  } catch (err) {
+    toast.show('❌ ' + (err.message || 'Server error'))
   }
-  resetForm()
 }
 
-// Delete product
-function deleteProduct(pdID) {
-  if (confirm('Are you sure you want to delete this product?')) {
+async function deleteProduct(pdID) {
+  if (!confirm('Are you sure you want to delete this product?')) return
+  try {
+    await api.deleteProduct(pdID)
     products.value = products.value.filter(p => p.pdID !== pdID)
     toast.show('✓ Product deleted successfully')
+  } catch (err) {
+    toast.show('❌ Failed to delete product')
   }
 }
 
-// Handle image upload
 function handleImageUpload(event) {
   const file = event.target.files?.[0]
   if (file) {
     const reader = new FileReader()
-    reader.onload = (e) => {
-      formData.value.image = e.target?.result || ''
-    }
+    reader.onload = (e) => { formData.value.image = e.target?.result || '' }
     reader.readAsDataURL(file)
   }
 }
 
-// Remove image
 function removeImage() {
   formData.value.image = ''
-  if (imageInput.value) {
-    imageInput.value.value = ''
-  }
+  if (imageInput.value) imageInput.value.value = ''
 }
 </script>
 

@@ -13,39 +13,19 @@
       </div>
 
       <nav class="sidebar-nav">
-        <router-link 
-          to="/admin/dashboard" 
-          class="nav-item"
-          :class="{ active: activeNav === 'dashboard' }"
-          @click="activeNav = 'dashboard'"
-        >
+        <router-link :to="{ name: 'admin-dashboard' }" class="nav-item" active-class="active">
           <span class="material-symbols-outlined">dashboard</span>
           <span>Dashboard</span>
         </router-link>
-        <router-link 
-          to="/admin/orders" 
-          class="nav-item"
-          :class="{ active: activeNav === 'orders' }"
-          @click="activeNav = 'orders'"
-        >
+        <router-link :to="{ name: 'admin-orders' }" class="nav-item" active-class="active">
           <span class="material-symbols-outlined">receipt_long</span>
           <span>Orders</span>
         </router-link>
-        <router-link 
-          to="/admin/products" 
-          class="nav-item"
-          :class="{ active: activeNav === 'products' }"
-          @click="activeNav = 'products'"
-        >
+        <router-link :to="{ name: 'admin-products' }" class="nav-item" active-class="active">
           <span class="material-symbols-outlined">inventory_2</span>
           <span>Products</span>
         </router-link>
-        <router-link 
-          to="/admin/members" 
-          class="nav-item"
-          :class="{ active: activeNav === 'members' }"
-          @click="activeNav = 'members'"
-        >
+        <router-link :to="{ name: 'admin-members' }" class="nav-item" active-class="active">
           <span class="material-symbols-outlined">people</span>
           <span>Members</span>
         </router-link>
@@ -82,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../../stores/auth'
 
@@ -91,12 +71,7 @@ const auth = useAuth()
 const activeNav = ref('dashboard')
 const sidebarOpen = ref(true)
 
-onMounted(() => {
-  // Check if user is admin
-  if (!auth.isLoggedIn.value || auth.user.value?.status !== 'admin') {
-    router.push('/login')
-  }
-})
+// ✅ ลบ onMounted ออก — router guard จัดการแล้ว
 
 function handleLogout() {
   auth.logout()

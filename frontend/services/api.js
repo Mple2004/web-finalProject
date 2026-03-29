@@ -173,5 +173,31 @@ export default {
       throw error
     }
   },
+
+  // ─── ADMIN PRODUCTS ────────────────────────────────
+  async adminGetProducts() {
+    const res = await http.get('/products')
+    return res.data
+  },
+
+  async addProduct(data) {
+    const res = await http.post('/products', data)
+    return res.data
+  },
+
+  async updateProduct(pdID, data) {
+    const res = await http.put(`/products/${pdID}`, data)
+    return res.data
+  },
+
+  async deleteProduct(pdID) {
+    const res = await http.delete(`/products/${pdID}`)
+    return res.data
+  },
+
+  async deleteMember(email) {
+    const res = await http.delete(`/admin/members/${email}`)
+    return res.data
+  },
   
 }
