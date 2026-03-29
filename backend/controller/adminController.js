@@ -109,6 +109,30 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
+// ฟังก์ชันสำหรับลบออเดอร์
+export const deleteOrder = async (req, res) => {
+  if (checkAdmin(req, res) !== true) return;
+  
+  const orderId = req.params.id;
+
+  try {
+    // 1. ต้องลบรายละเอียดสินค้าในตะกร้า (cartDtl) ก่อน ป้องกันปัญหา Foreign Key
+    await database.query({
+      text: `DELETE FROM "cartDtl" WHERE cart_id = $1`,
+      values: [orderId]
+    });
+
+    // 2. จากนั้นลบหัวตะกร้า (carts) ทิ้ง
+    await database.query({
+      text: `DELETE FROM carts WHERE cart_id = $1`,
+      values: [orderId]
+    });
+
+    res.json({ success: true, message: "ลบออเดอร์สำเร็จ" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // ==========================================
 // 👥 หน้า 4: Member Management
 // ==========================================

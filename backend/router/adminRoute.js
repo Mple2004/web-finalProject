@@ -3,6 +3,7 @@ import {
   getDashboardStats,
   getAllOrders,
   updateOrderStatus,
+  deleteOrder,
   getAllMembers,
   deleteMember,
 } from "../controller/adminController.js";
@@ -144,6 +145,42 @@ router.get("/admin/orders", authenticateToken, getAllOrders);
  *         description: ไม่พบออเดอร์นี้
  */
 router.put("/admin/orders/status", authenticateToken, updateOrderStatus);
+
+/**
+ * @swagger
+ * /admin/orders/{id}:
+ *   delete:
+ *     summary: ลบออเดอร์ตาม ID (เฉพาะ Admin)
+ *     tags: [Admin]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: รหัสออเดอร์ (Cart ID) ที่ต้องการลบ
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: ลบออเดอร์สำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 deleteOK:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         description: ไม่มีสิทธิ์เข้าถึง (Token ไม่ถูกต้อง)
+ *       403:
+ *         description: ไม่มีสิทธิ์ Admin
+ *       404:
+ *         description: ไม่พบออเดอร์นี้
+ */
+router.delete("/admin/orders/:id", authenticateToken, deleteOrder);
 
 /**
  * @swagger
