@@ -27,9 +27,7 @@
           v-for="(product, i) in products" :key="product.id"
           :product="product"
           :delay="i * 60"
-          :is-wishlisted="wishlist.has(product.id)"
           @add-to-cart="addToCart"
-          @toggle-wishlist="toggleWish"
         />
       </div>
     </section>
@@ -59,9 +57,7 @@
           v-for="(product, i) in bestSellers" :key="product.id"
           :product="product"
           :delay="i * 60"
-          :is-wishlisted="wishlist.has(product.id)"
           @add-to-cart="addToCart"
-          @toggle-wishlist="toggleWish"
         />
       </div>
     </section>

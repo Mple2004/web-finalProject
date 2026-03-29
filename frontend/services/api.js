@@ -92,18 +92,33 @@ export default {
   },
 
   // ─── TRANSACTION ──────────────────────────────────
-  async checkout(cartId, email) {
-    const res = await http.post('/transaction/checkout', { cart_id: cartId, email })
+
+  async checkout(cartId) {
+    // ✅ ลบ email ออก — backend อ่านจาก Token เอง
+    const res = await http.post('/transaction/checkout', { cart_id: cartId })
     return res.data
   },
 
-  async getOrderHistory(email) {
-    const res = await http.post('/transaction/history', { email })
+  async getOrderHistory() {
+    // ✅ เปลี่ยนจาก POST → GET และไม่ต้องส่ง email
+    const res = await http.get('/transaction/history')
     return res.data
   },
 
   async getOrderDetail(cartId) {
+    // ✅ เปลี่ยน path param ให้ตรงกับ backend (:cart_id)
     const res = await http.get(`/transaction/detail/${cartId}`)
     return res.data
+  },
+
+  // ─── WISHLIST ─────────────────────────────────────
+  async getWishlist() {
+    const res = await http.get('/wishlist')
+    return res.data
+  },
+
+  async toggleWishlist(pdId, email) {
+    const res = await http.post('/wishlist/toggle', { pdId, email })
+    return res.data  // { message, isLiked: true/false }
   },
 }

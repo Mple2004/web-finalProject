@@ -80,11 +80,15 @@ export function useCart() {
     }
   }
 
-  async function checkout(email) {
+  async function checkout() {
     if (!state.cartId) return { success: false, message: 'ไม่พบตะกร้า' }
-    const res = await api.checkout(state.cartId, email)
-    if (res.success) clearCart()
-    return res
+    try {
+      const res = await api.checkout(state.cartId)  // ✅ ไม่ส่ง email
+      if (res?.success || res?.checkoutOK) clearCart()
+      return res
+    } catch (err) {
+      return { success: false, message: err.message }
+    }
   }
 
   return {

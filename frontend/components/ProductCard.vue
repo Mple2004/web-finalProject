@@ -2,8 +2,12 @@
   <div class="card" :style="{ animationDelay: `${delay}ms` }">
     <div class="card-image" @click="$router.push(`/product/${product.id}`)">
       <div v-if="product.tag" :class="['tag', `tag-${product.tag}`]">{{ product.tag }}</div>
-      <button class="wishlist-btn" @click.stop="$emit('toggle-wishlist', product.id)">
-        <span class="material-symbols-outlined" :class="{ 'fill-icon': isWishlisted }">favorite</span>
+      <button class="wishlist-btn" @click.stop="handleWishlist">
+        <span class="material-symbols-outlined" 
+              :class="{ 'fill-icon': isWishlisted }"
+              :style="{ color: isWishlisted ? 'var(--primary)' : '' }">
+          favorite
+        </span>
       </button>
       <img :src="product.image" :alt="product.name" class="product-img" />
     </div>
@@ -13,8 +17,8 @@
       <p class="desc line-clamp-2">{{ product.description }}</p>
       <div class="price-row">
         <div>
-          <p class="price">${{ product.price.toFixed(2) }}</p>
-          <p v-if="product.oldPrice" class="old-price">${{ product.oldPrice.toFixed(2) }}</p>
+          <p class="price">฿{{ product.price.toFixed(2) }}</p>
+          <p v-if="product.oldPrice" class="old-price">฿{{ product.oldPrice.toFixed(2) }}</p>
           <p class="meta">{{ product.volume }} | {{ product.abv }}</p>
         </div>
         <button class="cart-btn" @click="$emit('add-to-cart', product)">
@@ -26,12 +30,50 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, onMounted } from 'vue'
+import { useAuth } from '../stores/auth'
+import { useLoginModal } from '../stores/loginModal'
+import { useToast } from '../stores/toast'
+import api from '../services/api'
+
+const props = defineProps({
   product: { type: Object, required: true },
-  delay: { type: Number, default: 0 },
-  isWishlisted: { type: Boolean, default: false },
+  delay:   { type: Number, default: 0 },
 })
-defineEmits(['add-to-cart', 'toggle-wishlist'])
+defineEmits(['add-to-cart'])
+
+const auth = useAuth()
+const loginModal = useLoginModal()
+const toast = useToast()
+
+const isWishlisted = ref(false)
+
+// ✅ โหลดสถานะ wishlist ตอน mount
+onMounted(async () => {
+  if (!auth.isLoggedIn.value) return
+  try {
+    const wishlist = await api.getWishlist()
+    const ids = (Array.isArray(wishlist) ? wishlist : []).map(p => p.pdID)
+    isWishlisted.value = ids.includes(props.product.id || props.product.pdID)
+  } catch { /* ไม่ต้องทำอะไร */ }
+})
+
+// ✅ toggle wishlist + ป้องกัน login
+async function handleWishlist() {
+  if (!auth.isLoggedIn.value) {
+    loginModal.show()
+    return
+  }
+  try {
+    const pdId  = props.product.id || props.product.pdID
+    const email = auth.user.value.email
+    const res   = await api.toggleWishlist(pdId, email)
+    isWishlisted.value = res.isLiked
+    toast.show(res.isLiked ? '❤️ Added to wishlist' : 'Removed from wishlist')
+  } catch (err) {
+    console.error('Wishlist toggle error:', err.message)
+  }
+}
 </script>
 
 <style scoped>

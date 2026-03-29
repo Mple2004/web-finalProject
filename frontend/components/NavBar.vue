@@ -78,13 +78,21 @@
             aria-expanded="false"
             style="background:#2a2010; border:1px solid #3a2e1e; color:white; border-radius:50px; padding:6px 14px;"
           >
-            <span v-if="isLoggedIn">
-              <img 
-                :src="user.avatar" 
+            <template v-if="isLoggedIn && user">
+              <img
+                v-if="user.avatar"
+                :src="user.avatar"
+                alt="Profile"
                 style="width:28px; height:28px; border-radius:50%; object-fit:cover;"
               />
-            </span>
-            <span v-else style="font-size:1.1rem;">👤</span>
+              
+              <span v-else style="font-size:1.1rem;">👤</span>
+            </template>
+
+            <template v-else>
+              <span style="font-size:1.1rem;">👤</span>
+            </template>
+            <!--<span v-else style="font-size:1.1rem;">👤</span>-->
             
             <span style="font-size:0.85rem;">
               {{ isLoggedIn ? user.name : 'Login' }}
@@ -153,6 +161,7 @@
 
 
 <script setup>
+import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCart } from '../stores/cart'
@@ -164,13 +173,14 @@ const auth = useAuth()
 const router = useRouter()
 const route = useRoute()
 
-const isLoggedIn = auth.isLoggedIn
-const user = auth.user
+const { isLoggedIn } = storeToRefs(auth)
+const { user } = storeToRefs(auth)
 
 const searchQuery = ref('')
 const showSuggestions = ref(false)
 const filteredSuggestions = ref([])
 const isSearching = ref(false)
+
 
 
 // ---- Debounce helper ----

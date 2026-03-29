@@ -234,7 +234,7 @@ onMounted(async () => {
   // โหลด orders จาก API จริง
   loadingOrders.value = true
   try {
-    const res = await orders.getUserOrders(user.value.email)
+    const res = await orders.getUserOrders()
     // รองรับทั้ง array ตรงๆ และ { history: [...] }
     userOrders.value = Array.isArray(res) ? res : (res?.history ?? res?.data ?? [])
   } catch (err) {
@@ -287,17 +287,16 @@ function saveProfile() {
   // อัปเดต user ใน store
   user.value = { ...user.value, name, email }
 
-  // บันทึก avatar
+  // ✅ บันทึก avatar ผ่าน auth store — Navbar จะอัปเดตทันที
   if (previewUrl.value) {
-    localStorage.setItem(avatarKey(), previewUrl.value)
+    auth.updateAvatar(previewUrl.value)
     avatarUrl.value = previewUrl.value
-  } else {
-    localStorage.removeItem(avatarKey())
-    avatarUrl.value = ''
+  } else if (avatarUrl.value === '') {
+    auth.removeAvatar()
   }
 
   editing.value = false
-  showPw.value = { current: false, new: false }
+  showPw.value  = { current: false, new: false }
   previewUrl.value = ''
   toast.show('✓ Profile updated')
 }

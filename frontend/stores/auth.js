@@ -2,32 +2,44 @@ import { ref } from 'vue'
 import api from '../services/api'
 import { useCart } from './cart'
 
+
+// ✅ helper อ่าน avatar จาก localStorage
+function getAvatar(email) {
+  return email ? localStorage.getItem(`avatar_${email}`) || '' : ''
+}
+
 const user = ref(null)
 const isLoggedIn = ref(false)
-
-async function restoreSession() {
-  try {
-    const me = await api.getMe()
-    if (me.login) {
-      user.value = { email: me.email, name: me.name, status: me.status }
-      isLoggedIn.value = true
-      // แก้: โหลดตะกร้าของ user จาก DB ด้วย
-      await useCart().loadUserCart()
-    }
-  } catch {
-    user.value = null
-    isLoggedIn.value = false
-  }
-}
-restoreSession()
-
 export function useAuth() {
+
+  async function restoreSession() {
+    try {
+      const me = await api.getMe()
+      if (me?.login) {
+        user.value = {
+          email:  me.email,
+          name:   me.name,
+          status: me.status,
+          avatar: getAvatar(me.email),
+        }
+        isLoggedIn.value = true
+        await useCart().loadUserCart()
+      } else {
+        user.value = null
+        isLoggedIn.value = false
+      }
+    } catch {
+      user.value = null
+      isLoggedIn.value = false
+    }
+  }
+
   async function login(email, password) {
     try {
       const res = await api.login(email, password)
       if (res.login) {
         const me = await api.getMe()
-        user.value = { email: me.email, name: me.name, status: me.status }
+        user.value = { email: me.email, name: me.name, status: me.status, avatar: getAvatar(me.email) }
         isLoggedIn.value = true
         // แก้: โหลดตะกร้าของ user จาก DB หลัง login สำเร็จ
         await useCart().loadUserCart()
@@ -58,20 +70,18 @@ export function useAuth() {
     isLoggedIn.value = false
   }
 
-  // ✅ ต้องเพิ่ม restoreSession เข้ามาในนี้ด้วย
-  async function restoreSession() {
-    try {
-      const me = await api.getMe()
-      if (me.login) {
-        user.value = { email: me.email, name: me.name, status: me.status }
-        isLoggedIn.value = true
-        await useCart().loadUserCart()
-      }
-    } catch (err) {
-      user.value = null
-      isLoggedIn.value = false
-    }
+   // ✅ เพิ่ม updateAvatar — เรียกจาก ProfilePage หลัง save
+  function updateAvatar(avatarDataUrl) {
+    if (!user.value) return
+    localStorage.setItem(`avatar_${user.value.email}`, avatarDataUrl)
+    user.value = { ...user.value, avatar: avatarDataUrl }
   }
 
-  return { user, isLoggedIn, login, register, logout, restoreSession }
+  function removeAvatar() {
+    if (!user.value) return
+    localStorage.removeItem(`avatar_${user.value.email}`)
+    user.value = { ...user.value, avatar: '' }
+  }
+
+  return { user, isLoggedIn, login, register, logout, restoreSession, updateAvatar, removeAvatar }
 }

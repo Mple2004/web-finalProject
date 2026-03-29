@@ -261,10 +261,11 @@ async function placeOrder() {
   if (!user?.value || cart.state.items.length === 0 || !validateForm()) return
   isProcessing.value = true
   try {
-    const res = await cart.checkout(user.value.email)
+    const res = await cart.checkout()  // ✅ ไม่ต้องส่ง email แล้ว
     if (res?.success) {
       orderId.value = res.cartId || 'ORD-' + Date.now()
       showSuccess.value = true
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } else {
       alert('Checkout failed: ' + (res?.message || 'Unknown error'))
     }

@@ -67,10 +67,9 @@
         <div v-else-if="viewMode === 'grid'" class="product-grid">
           <ProductCard
             v-for="(p, i) in paginatedProducts" :key="p.id"
-            :product="p" :delay="i * 60"
-            :is-wishlisted="wishlist.has(p.id)"
+            :product="p"
+            :delay="i * 60"
             @add-to-cart="handleAdd"
-            @toggle-wishlist="toggleWish"
           />
         </div>
 
