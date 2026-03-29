@@ -168,3 +168,21 @@ export const deleteMember = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ฟังก์ชันสำหรับแอดมินแก้ไขข้อมูลสมาชิก
+export const updateMemberByAdmin = async (req, res) => {
+  if (checkAdmin(req, res) !== true) return;
+  
+  const targetEmail = req.params.email;
+  const { name, status } = req.body;
+
+  try {
+    await database.query({
+      text: `UPDATE "user" SET name = $1, status = $2 WHERE email = $3`,
+      values: [name, status, targetEmail]
+    });
+    res.json({ success: true, message: "อัปเดตข้อมูลสมาชิกสำเร็จ" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -6,6 +6,7 @@ import {
   deleteOrder,
   getAllMembers,
   deleteMember,
+  updateMemberByAdmin,
 } from "../controller/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -258,5 +259,67 @@ router.get("/admin/members", authenticateToken, getAllMembers);
  *         description: ไม่พบสมาชิกนี้
  */
 router.delete("/admin/members/:email", authenticateToken, deleteMember);
+
+/**
+ * @swagger
+ * /admin/members/{email}:
+ *   put:
+ *     summary: แก้ไขข้อมูลสมาชิกโดย Admin
+ *     tags: [Admin]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Email ของสมาชิกที่ต้องการแก้ไข
+ *         example: "user@example.com"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: ชื่อใหม่ของสมาชิก
+ *                 example: "Jane Doe"
+ *               password:
+ *                 type: string
+ *                 description: รหัสผ่านใหม่ (ถ้าต้องการเปลี่ยน)
+ *                 example: "newpassword456"
+ *               role:
+ *                 type: string
+ *                 description: สิทธิ์ของสมาชิก
+ *                 example: "admin"
+ *                 enum:
+ *                   - user
+ *                   - admin
+ *               phone:
+ *                 type: string
+ *                 description: เบอร์โทรศัพท์
+ *                 example: "0812345678"
+ *     responses:
+ *       200:
+ *         description: แก้ไขข้อมูลสมาชิกสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 updateOK:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         description: ไม่มีสิทธิ์เข้าถึง (Token ไม่ถูกต้อง)
+ *       403:
+ *         description: ไม่มีสิทธิ์ Admin
+ *       404:
+ *         description: ไม่พบสมาชิกนี้
+ */
+router.put("/admin/members/:email", authenticateToken, updateMemberByAdmin);
 
 export default router;

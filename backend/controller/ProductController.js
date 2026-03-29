@@ -94,7 +94,7 @@ export const putProduct = async (req, res) => {
   try {
     const bodydata = req.body;
     
-    // Updated UPDATE to match the image schema
+    // 🚨 เพิ่ม stock_qty เข้าไปในคำสั่ง UPDATE
     const result = await database.query({
       text: `
       UPDATE products
@@ -104,8 +104,9 @@ export const putProduct = async (req, res) => {
           "pdBrand" = $4, 
           "pdCountry" = $5,
           "pdSize" = $6,
-          "pdPrice" = $7
-      WHERE "pdID" = $8
+          "pdPrice" = $7,
+          "stock_qty" = $8 
+      WHERE "pdID" = $9
       RETURNING *
       `,
       values: [
@@ -116,6 +117,7 @@ export const putProduct = async (req, res) => {
         bodydata.pdCountry,
         bodydata.pdSize,
         bodydata.pdPrice,
+        bodydata.stock_qty || 0, // <--- รับค่าสต็อกตรงนี้
         req.params.id,
       ],
     });
@@ -126,7 +128,7 @@ export const putProduct = async (req, res) => {
     
     const updated = result.rows[0];
     updated.message = "ok";
-    res.status(200).json(updated); // Changed 201 to 200 for PUT
+    res.status(200).json(updated); 
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: error.message });
