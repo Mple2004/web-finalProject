@@ -1,6 +1,14 @@
 import express from "express";
-import { getAdminSalesSummary } from "../controller/transactionController.js";
-import { checkout, getOrderHistory, getOrderDetail } from "../controller/transactionController.js";
+import {
+  checkout,
+  getOrderHistory,
+  getOrderDetail,
+  getAdminSalesSummary,
+  getAdminDashboard,
+  getAllOrders,
+  updateOrderStatus,
+  getMemberOrders,
+} from "../controller/transactionController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -186,5 +194,11 @@ router.get("/transaction/detail/:cart_id", authenticateToken, getOrderDetail);
  *         description: ไม่มีสิทธิ์ Admin
  */
 router.get("/admin/sales-summary", authenticateToken, getAdminSalesSummary);
+
+// ── Admin Routes ─────────────────────────────────────────────
+router.get("/admin/dashboard", authenticateToken, getAdminDashboard);
+router.get("/admin/orders", authenticateToken, getAllOrders);
+router.put("/admin/order/:cart_id/status", authenticateToken, updateOrderStatus);
+router.get("/admin/member-orders/:email", authenticateToken, getMemberOrders);
 
 export default router;

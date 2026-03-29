@@ -21,8 +21,8 @@
           <p v-if="product.oldPrice" class="old-price">฿{{ product.oldPrice.toFixed(2) }}</p>
           <p class="meta">{{ product.volume }} | {{ product.abv }}</p>
         </div>
-        <button class="cart-btn" @click="$emit('add-to-cart', product)">
-          <span class="material-symbols-outlined">add_shopping_cart</span>
+        <button class="cart-btn" :class="{ added: justAdded }" @click="handleAddToCart">
+          <span class="material-symbols-outlined">{{ justAdded ? 'check' : 'add_shopping_cart' }}</span>
         </button>
       </div>
     </div>
@@ -40,13 +40,21 @@ const props = defineProps({
   product: { type: Object, required: true },
   delay:   { type: Number, default: 0 },
 })
-defineEmits(['add-to-cart'])
+const emit = defineEmits(['add-to-cart'])
 
 const auth = useAuth()
 const loginModal = useLoginModal()
 const toast = useToast()
 
 const isWishlisted = ref(false)
+const justAdded = ref(false)
+
+function handleAddToCart() {
+  if (justAdded.value) return
+  emit('add-to-cart', props.product)
+  justAdded.value = true
+  setTimeout(() => { justAdded.value = false }, 1200)
+}
 
 // ✅ โหลดสถานะ wishlist ตอน mount
 onMounted(async () => {
@@ -128,8 +136,16 @@ async function handleWishlist() {
   width: 40px; height: 40px; border-radius: 50%;
   background: var(--primary); color: white;
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.2s; box-shadow: var(--shadow-primary);
+  transition: transform 0.2s, background 0.3s; box-shadow: var(--shadow-primary);
 }
 .cart-btn:hover { transform: scale(1.1); }
-.cart-btn .material-symbols-outlined { font-size: 20px; }
+.cart-btn .material-symbols-outlined { font-size: 20px; transition: transform 0.2s; }
+.cart-btn.added { background: #4caf50; animation: popIn 0.3s ease; }
+.cart-btn.added .material-symbols-outlined { transform: scale(1.2); }
+
+@keyframes popIn {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
 </style>

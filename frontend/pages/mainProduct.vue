@@ -42,7 +42,7 @@
             <p class="section-sub">Our most loved bottles, chosen by the crowd.</p>
           </div>
         </div>
-        <router-link to="/category" class="view-all">
+        <router-link to="/category?sort=bestseller" class="view-all">
           View All <span class="material-symbols-outlined arrow">arrow_forward</span>
         </router-link>
       </div>

@@ -156,6 +156,7 @@ const loginModal = useLoginModal()
 const loading = ref(true)
 const allProducts = ref([])       // สินค้าของ category ที่กำลังดูอยู่
 const allProductsCache = ref([])  // ✅ เก็บสินค้าทั้งหมดไว้คำนวณ mainCategories
+const rankings = ref({})          // { [pdID]: { sold, wishlistCount } }
 const mainCategory = ref('')
 const activeSubcategory = ref('')
 
@@ -191,20 +192,23 @@ function mapProduct(p) {
 // ✅ โหลด cache ทั้งหมดครั้งเดียวตอน mount
 onMounted(async () => {
   try {
-    const data = await api.getProducts()
+    const [data, rank] = await Promise.all([api.getProducts(), api.getProductRankings()])
     const raw = Array.isArray(data) ? data : (data.data ?? [])
     allProductsCache.value = raw.map(mapProduct)
+    rankings.value = rank || {}
   } catch (err) {
     console.error('Failed to load cache:', err.message)
   }
 })
 
-// ✅ โหลด products ตาม category
-async function loadProducts(category) {
+// ✅ โหลด products ตาม category หรือ search query
+async function loadProducts(category, search) {
   loading.value = true
   try {
     let data
-    if (category) {
+    if (search) {
+      data = await api.searchProducts(search)
+    } else if (category) {
       data = await api.getProductsByCategory(category)
     } else {
       data = await api.getProducts()
@@ -248,7 +252,10 @@ const allRegions = computed(() => {
   return [...s].sort()
 })
 
+const searchQuery = computed(() => route.query.search || '')
+
 const collectionTitle = computed(() => {
+  if (searchQuery.value) return `Search: "${searchQuery.value}"`
   if (activeSubcategory.value) return `${activeSubcategory.value} Collection`
   if (mainCategory.value) return `${mainCategory.value} Collection`
   return 'All Collection'
@@ -265,6 +272,8 @@ const filteredProducts = computed(() => {
   if (sortBy.value === 'price-asc') list.sort((a, b) => a.price - b.price)
   else if (sortBy.value === 'price-desc') list.sort((a, b) => b.price - a.price)
   else if (sortBy.value === 'newest') list.sort((a, b) => b.id - a.id)
+  else if (sortBy.value === 'bestseller') list.sort((a, b) => (rankings.value[b.id]?.sold ?? 0) - (rankings.value[a.id]?.sold ?? 0))
+  else if (sortBy.value === 'popular') list.sort((a, b) => (rankings.value[b.id]?.wishlistCount ?? 0) - (rankings.value[a.id]?.wishlistCount ?? 0))
   return list
 })
 
@@ -301,16 +310,17 @@ watch([activeSubcategory, minPrice, maxPrice, selectedRegions, sortBy], () => {
   page.value = 1
 })
 
-watch(() => route.params.id, (id) => {
+watch(() => [route.params.id, route.query.sub, route.query.search, route.query.sort], ([id, sub, search, sort]) => {
   page.value = 1
-  activeSubcategory.value = ''
+  activeSubcategory.value = sub ? decodeURIComponent(sub) : ''
   selectedRegions.value = []
   minPrice.value = 0
   maxPrice.value = 9999
+  if (sort) sortBy.value = sort
   mainCategory.value = id
     ? id.charAt(0).toUpperCase() + id.slice(1).toLowerCase()
     : ''
-  loadProducts(mainCategory.value)
+  loadProducts(mainCategory.value, search)
 }, { immediate: true })
 
 function handleAdd(p) {

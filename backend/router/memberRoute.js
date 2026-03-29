@@ -6,6 +6,10 @@ import {
   logoutMember,
   uploadMember,
   updateToAdmin,
+  getAllMembers,
+  deleteMember,
+  updateMember,
+  updateMemberWithFile,
 } from "../controller/memberController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -218,5 +222,11 @@ router.post("/members/upload", authenticateToken, uploadMember);
  *                   example: true
  */
 router.put("/member/set-admin", authenticateToken, updateToAdmin);
+
+// ── Admin Member Routes ──────────────────────────────────────
+router.get("/admin/members", authenticateToken, getAllMembers);
+router.delete("/admin/member/:email", authenticateToken, deleteMember);
+router.put("/admin/member/:email", authenticateToken, updateMember);
+router.put("/admin/member/:email/update", authenticateToken, updateMemberWithFile);
 
 export default router;

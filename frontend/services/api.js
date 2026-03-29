@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const http = axios.create({
-  baseURL: 'http://localhost:5500',
+  baseURL: 'http://localhost:5000',
   withCredentials: true,
 })
 
@@ -24,6 +24,11 @@ export default {
 
   async logout() {
     await http.post('/members/logout')
+  },
+
+  async updateProfile(email, formData) {
+    const res = await http.put(`/admin/member/${encodeURIComponent(email)}/update`, formData)
+    return res.data
   },
 
   // ─── PRODUCTS ─────────────────────────────────────
@@ -54,6 +59,16 @@ export default {
 
   async getThreeProducts() {
     const res = await http.get('/products/three')
+    return res.data
+  },
+
+  async getFilteredProducts(params) {
+    const res = await http.get('/products/filter', { params })
+    return res.data
+  },
+
+  async getProductRankings() {
+    const res = await http.get('/products/rankings')
     return res.data
   },
 
@@ -92,21 +107,17 @@ export default {
   },
 
   // ─── TRANSACTION ──────────────────────────────────
-
   async checkout(cartId) {
-    // ✅ ลบ email ออก — backend อ่านจาก Token เอง
     const res = await http.post('/transaction/checkout', { cart_id: cartId })
     return res.data
   },
 
   async getOrderHistory() {
-    // ✅ เปลี่ยนจาก POST → GET และไม่ต้องส่ง email
     const res = await http.get('/transaction/history')
     return res.data
   },
 
   async getOrderDetail(cartId) {
-    // ✅ เปลี่ยน path param ให้ตรงกับ backend (:cart_id)
     const res = await http.get(`/transaction/detail/${cartId}`)
     return res.data
   },
@@ -119,6 +130,79 @@ export default {
 
   async toggleWishlist(pdId, email) {
     const res = await http.post('/wishlist/toggle', { pdId, email })
-    return res.data  // { message, isLiked: true/false }
+    return res.data
+  },
+
+  // ─── ADMIN ────────────────────────────────────────
+  async getAdminDashboard() {
+    const res = await http.get('/admin/dashboard')
+    return res.data
+  },
+
+  async getAllOrders() {
+    const res = await http.get('/admin/orders')
+    return res.data
+  },
+
+  async updateOrderStatus(cartId, status) {
+    const res = await http.put(`/admin/order/${cartId}/status`, { status })
+    return res.data
+  },
+
+  async getAllMembers() {
+    const res = await http.get('/admin/members')
+    return res.data
+  },
+
+  async deleteMember(email) {
+    const res = await http.delete(`/admin/member/${encodeURIComponent(email)}`)
+    return res.data
+  },
+
+  async updateMember(email, data) {
+    const res = await http.put(`/admin/member/${encodeURIComponent(email)}`, data)
+    return res.data
+  },
+
+  async updateMemberWithFile(email, formData) {
+    const res = await http.put(`/admin/member/${encodeURIComponent(email)}/update`, formData)
+    return res.data
+  },
+
+  async getMemberOrders(email) {
+    const res = await http.get(`/admin/member-orders/${encodeURIComponent(email)}`)
+    return res.data
+  },
+
+  async createProduct(data, imageFiles = []) {
+    const form = new FormData()
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== null && v !== undefined && v !== '') form.append(k, v)
+    }
+    if (imageFiles[0]) form.append('image1', imageFiles[0])
+    if (imageFiles[1]) form.append('image2', imageFiles[1])
+    if (imageFiles[2]) form.append('image3', imageFiles[2])
+    const res = await http.post('/products', form)
+    return res.data
+  },
+
+  async updateProduct(id, data, imageFiles = [], keepImages = []) {
+    const form = new FormData()
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== null && v !== undefined && v !== '') form.append(k, v)
+    }
+    if (imageFiles[0]) form.append('image1', imageFiles[0])
+    if (imageFiles[1]) form.append('image2', imageFiles[1])
+    if (imageFiles[2]) form.append('image3', imageFiles[2])
+    form.append('keepImage1', keepImages[0] ?? '')
+    form.append('keepImage2', keepImages[1] ?? '')
+    form.append('keepImage3', keepImages[2] ?? '')
+    const res = await http.put(`/products/${id}`, form)
+    return res.data
+  },
+
+  async deleteProduct(id) {
+    const res = await http.delete(`/products/${id}`)
+    return res.data
   },
 }

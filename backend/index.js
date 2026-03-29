@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { mkdirSync } from "fs";
+import database from "./services/database.js";
 
 // 1. นำเข้าไลบรารี Swagger
 import swaggerUi from "swagger-ui-express";
@@ -16,6 +18,10 @@ import cartRoute from "./router/cartRoute.js";
 import wishlistRoute from "./router/wishlistRoute.js";
 
 dotenv.config();
+
+// สร้างโฟลเดอร์เก็บรูปโปรไฟล์ถ้ายังไม่มี
+try { mkdirSync("img_mem"); } catch {}
+try { mkdirSync("img_prod"); } catch {}
 
 const app = express();
 const port = process.env.PORT || 5500; // แนะนำให้ใส่ fallback port ไว้เผื่อไฟล์ .env มีปัญหา
@@ -67,6 +73,8 @@ app.use(
 );
 app.use(cookieParser());
 app.use(bodyParser.json());
+app.use("/img_mem", express.static("img_mem"));
+app.use("/img_prod", express.static("img_prod"));
 
 // 4. สร้างเส้นทางสำหรับดูหน้า Swagger UI
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
@@ -81,6 +89,13 @@ app.use(wishlistRoute);
 app.get("/", (req, res) => {
   res.json({ info: "Hello World", message: "Ok" });
 });
+
+// DB migration: add image columns if not exists
+try {
+  await database.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS "pdImage" TEXT`);
+  await database.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS "pdImage2" TEXT`);
+  await database.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS "pdImage3" TEXT`);
+} catch (e) { console.log("Migration note:", e.message); }
 
 app.listen(port, () => {
   console.log(`App running on port ${port}.`);

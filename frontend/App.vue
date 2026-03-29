@@ -1,28 +1,34 @@
 <template>
   <div class="app-container">
-    <NavBar />
-    <RouterView />
-    <CartSidebar />
+    <template v-if="!isAdminRoute">
+      <NavBar />
+      <RouterView />
+      <CartSidebar />
+      <LoginModal />
+    </template>
+    <RouterView v-else />
     <ToastNotification />
-    <LoginModal />
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuth } from './stores/auth'
 import { RouterView } from 'vue-router'
-import NavBar           from './components/NavBar.vue'
-import CartSidebar      from './components/CartSidebar.vue'
+import NavBar            from './components/NavBar.vue'
+import CartSidebar       from './components/CartSidebar.vue'
 import ToastNotification from './components/ToastNotification.vue'
-import LoginModal       from './components/LoginModal.vue'
+import LoginModal        from './components/LoginModal.vue'
 
 const auth = useAuth()
+const route = useRoute()
+
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 onMounted(async () => {
-  await auth.restoreSession() // ดึงข้อมูล User จาก Cookie (httpOnly) มาใส่ Store
+  await auth.restoreSession()
 })
-
 </script>
 
 <style>

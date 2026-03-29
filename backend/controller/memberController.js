@@ -2,6 +2,7 @@ import database from "../services/database.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import { renameSync, existsSync } from "fs";
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -164,4 +165,169 @@ export const updateToAdmin = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+export const getAllMembers = async (req, res) => {
+  try {
+    const result = await database.query({
+      text: `SELECT email, name, status FROM "user" ORDER BY email ASC`,
+    });
+    res.status(200).json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteMember = async (req, res) => {
+  const { email } = req.params;
+  try {
+    if (req.user.email === email) {
+      return res.status(400).json({ message: "ไม่สามารถลบบัญชีของตัวเองได้" });
+    }
+    const result = await database.query({
+      text: `DELETE FROM "user" WHERE email = $1`,
+      values: [email],
+    });
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+    }
+    res.status(200).json({ message: "ลบสมาชิกสำเร็จ", deleted: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateMember = async (req, res) => {
+  const { email } = req.params;
+  const { name, status } = req.body;
+  try {
+    // Check current status before updating
+    const check = await database.query({
+      text: `SELECT status FROM "user" WHERE email = $1`,
+      values: [email],
+    });
+    if (check.rowCount === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+
+    // Block demoting an admin to member
+    if (check.rows[0].status === 'admin' && status && status !== 'admin') {
+      return res.status(403).json({ message: "ไม่สามารถเปลี่ยน status ของ admin เป็น member ได้" });
+    }
+
+    const setClauses = [];
+    const values = [];
+    let idx = 1;
+    if (name !== undefined)   { setClauses.push(`"name" = $${idx++}`);   values.push(name); }
+    if (status !== undefined) { setClauses.push(`"status" = $${idx++}`); values.push(status); }
+
+    if (setClauses.length === 0) return res.status(400).json({ message: "ไม่มีข้อมูลที่ต้องอัปเดต" });
+
+    values.push(email);
+    const result = await database.query({
+      text: `UPDATE "user" SET ${setClauses.join(', ')} WHERE email = $${idx} RETURNING email, name, status`,
+      values,
+    });
+    res.status(200).json({ message: "อัปเดตสมาชิกสำเร็จ", updated: true, member: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateMemberWithFile = async (req, res) => {
+  upload(req, res, async (err) => {
+    const { email } = req.params;
+    const { email: newEmail, name, status, password, newPassword, currentPassword } = req.body;
+
+    try {
+      if (err) return res.status(400).json({ message: err.message });
+
+      // Check user exists + get hashed password for verification
+      const check = await database.query({
+        text: `SELECT status, password AS hashed_pwd FROM "user" WHERE email = $1`,
+        values: [email],
+      });
+      if (check.rowCount === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้นี้" });
+
+      // Regular users can only edit their own account
+      if (req.user.status !== 'admin' && req.user.email !== email) {
+        return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้อื่น" });
+      }
+
+      // Block demoting an admin to member
+      if (check.rows[0].status === 'admin' && status && status !== 'admin') {
+        return res.status(403).json({ message: "ไม่สามารถเปลี่ยน status ของ admin เป็น member ได้" });
+      }
+
+      // Check new email not taken
+      if (newEmail && newEmail !== email) {
+        const emailCheck = await database.query({
+          text: `SELECT email FROM "user" WHERE email = $1`,
+          values: [newEmail],
+        });
+        if (emailCheck.rowCount > 0) return res.status(400).json({ message: "อีเมลนี้มีผู้ใช้งานแล้ว" });
+      }
+
+      const setClauses = [];
+      const values = [];
+      let idx = 1;
+
+      if (newEmail && newEmail !== email) { setClauses.push(`"email" = $${idx++}`); values.push(newEmail); }
+      if (name !== undefined)             { setClauses.push(`"name" = $${idx++}`);  values.push(name); }
+      if (status !== undefined)           { setClauses.push(`"status" = $${idx++}`); values.push(status); }
+
+      // Admin direct password change (no current-password check needed)
+      if (password && password !== '') {
+        const pwdHash = await bcrypt.hash(password, await bcrypt.genSalt(11));
+        setClauses.push(`"password" = $${idx++}`); values.push(pwdHash);
+      }
+
+      // User self-edit: verify currentPassword before setting newPassword
+      if (newPassword && newPassword !== '') {
+        if (currentPassword) {
+          const isMatch = await bcrypt.compare(currentPassword, check.rows[0].hashed_pwd);
+          if (!isMatch) return res.status(400).json({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+        }
+        const pwdHash = await bcrypt.hash(newPassword, await bcrypt.genSalt(11));
+        setClauses.push(`"password" = $${idx++}`); values.push(pwdHash);
+      }
+
+      // Photo-only update: no text fields changed but file was uploaded — still success
+      if (setClauses.length === 0) {
+        return res.status(200).json({ message: "อัปเดตสมาชิกสำเร็จ", updated: true, member: { email, name: undefined, status: check.rows[0].status } });
+      }
+
+      values.push(email);
+      const result = await database.query({
+        text: `UPDATE "user" SET ${setClauses.join(', ')} WHERE email = $${idx} RETURNING email, name, status`,
+        values,
+      });
+
+      // Rename photo file when email changes
+      if (newEmail && newEmail !== email) {
+        try {
+          if (existsSync(`img_mem/${email}.jpg`)) renameSync(`img_mem/${email}.jpg`, `img_mem/${newEmail}.jpg`);
+        } catch { /* ignore */ }
+      }
+
+      // Re-issue JWT if user edited their own account (so refresh shows new data)
+      if (req.user.email === email) {
+        const updated = result.rows[0];
+        const newToken = jwt.sign(
+          { email: updated.email, name: updated.name, status: updated.status },
+          process.env.SECRET_KEY,
+          { expiresIn: "1h" }
+        );
+        res.cookie("token", newToken, {
+          maxAge: 3600000,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        });
+      }
+
+      res.status(200).json({ message: "อัปเดตสมาชิกสำเร็จ", updated: true, member: result.rows[0] });
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ message: error.message });
+    }
+  });
 };

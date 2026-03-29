@@ -9,8 +9,8 @@
 
       <!-- Links -->
       <div class="d-flex gap-4">
-        <router-link to="/category/Beer" class="text-decoration-none" style="color:#a89880">Beer</router-link>
-        <router-link to="/category/Wine" class="text-decoration-none" style="color:#a89880">Wine</router-link>
+        <router-link to="/category/beer" class="text-decoration-none" style="color:#a89880">Beer</router-link>
+        <router-link to="/category/wine" class="text-decoration-none" style="color:#a89880">Wine</router-link>
         <router-link to="/category/Whisky" class="text-decoration-none" style="color:#a89880">Whisky</router-link>
         <router-link to="/contact" class="text-decoration-none" style="color:#a89880">Contact Us</router-link>
       </div>
@@ -19,51 +19,44 @@
       <div class="d-flex align-items-center gap-3">
         
         <!-- Search -->
-        <div class="search-wrapper" v-click-outside="() => showSuggestions = false">
+        <div class="search-wrapper">
           <div class="search">
             <span class="material-symbols-outlined si">search</span>
-            <input 
-              v-model="searchQuery" 
-              placeholder="Search products..." 
+            <input
+              v-model="searchQuery"
+              placeholder="Search products..."
               @keyup.enter="handleSearch"
               @focus="showSuggestions = true"
               @input="debouncedFetch"
+              @blur="setTimeout(() => showSuggestions = false, 150)"
             />
-            <button v-if="searchQuery" @click="clearSearch" class="search-clear">
+            <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
           
           <!-- Suggestions Dropdown -->
-          <div v-if="showSuggestions && searchQuery && (filteredSuggestions.length || isSearching)" class="suggestions-list">
-            <!-- Loading state -->
-            <div v-if="isSearching" class="suggestion-loading">
-              <span class="spinner"></span> Searching...
+          <div v-if="showSuggestions && searchQuery && filteredSuggestions.length" class="suggestions-list">
+            <div 
+              v-for="product in filteredSuggestions.slice(0, 5)" 
+              :key="product.pdID"
+              class="suggestion-item"
+              @click="goToProduct(product.pdID)"
+            >
+              <img :src="product.pdImage || `https://placehold.co/40x48?text=${encodeURIComponent(product.pdName)}`" :alt="product.pdName" class="suggestion-img" />
+              <div class="suggestion-info">
+                <div class="suggestion-name">{{ product.pdName }}</div>
+                <div class="suggestion-brand">{{ product.pdBrand }}</div>
+              </div>
+              <div class="suggestion-price">฿{{ product.pdPrice.toFixed(2) }}</div>
             </div>
-            <template v-else>
-              <div 
-                v-for="product in filteredSuggestions.slice(0, 5)" 
-                :key="product.pdID"
-                class="suggestion-item"
-                @click="goToProduct(product.pdID)"
-              >
-                <img :src="product.image" :alt="product.pdName" class="suggestion-img" />
-                <div class="suggestion-info">
-                  <div class="suggestion-name">{{ product.pdName }}</div>
-                  <div class="suggestion-brand">{{ product.pdBrand }}</div>
-                </div>
-                <div class="suggestion-price">฿{{ product.pdPrice.toFixed(2) }}</div>
-              </div>
-              <div v-if="!filteredSuggestions.length && searchQuery" class="suggestion-empty">
-                No products found
-              </div>
-            </template>
           </div>
         </div>
 
         <!-- Cart -->
         <button class="cart-btn" @click="cart.open()">
           <span class="material-symbols-outlined">shopping_cart</span>
+
           <span v-if="cart.state.items.length" class="badge">
             {{ cart.state.items.length }}
           </span>
@@ -78,21 +71,14 @@
             aria-expanded="false"
             style="background:#2a2010; border:1px solid #3a2e1e; color:white; border-radius:50px; padding:6px 14px;"
           >
-            <template v-if="isLoggedIn && user">
-              <img
-                v-if="user.avatar"
-                :src="user.avatar"
-                alt="Profile"
+            <!-- ถ้า login แล้วแสดงรูป, ถ้ายังไม่ login แสดง icon -->
+            <span v-if="isLoggedIn">
+              <img 
+                :src="`http://localhost:5000/img_mem/${encodeURIComponent(auth.user.value?.email)}.jpg`" 
                 style="width:28px; height:28px; border-radius:50%; object-fit:cover;"
               />
-              
-              <span v-else style="font-size:1.1rem;">👤</span>
-            </template>
-
-            <template v-else>
-              <span style="font-size:1.1rem;">👤</span>
-            </template>
-            <!--<span v-else style="font-size:1.1rem;">👤</span>-->
+            </span>
+            <span v-else style="font-size:1.1rem;">👤</span>
             
             <span style="font-size:0.85rem;">
               {{ isLoggedIn ? user.name : 'Login' }}
@@ -103,6 +89,7 @@
           <ul class="dropdown-menu dropdown-menu-end" 
               style="background:#221a0e; border:1px solid #3a2e1e; min-width:180px;">
             
+            <!-- ถ้า Login แล้ว -->
             <template v-if="isLoggedIn">
               <li>
                 <div class="px-3 py-2 border-bottom" style="border-color:#3a2e1e !important;">
@@ -138,6 +125,7 @@
               </li>
             </template>
 
+            <!-- ถ้ายังไม่ Login -->
             <template v-else>
               <li>
                 <router-link to="/login" class="dropdown-item" style="color:#a89880;">
@@ -158,6 +146,7 @@
     </div>
   </nav>
 </template>
+
 
 
 <script setup>
@@ -187,11 +176,20 @@ const isSearching = ref(false)
 let debounceTimer = null
 const debouncedFetch = () => {
   clearTimeout(debounceTimer)
-  if (!searchQuery.value.trim()) {
+  const q = searchQuery.value.trim()
+  if (!q) {
     filteredSuggestions.value = []
+    if (route.name === 'category') {
+      router.replace({ name: 'category', params: route.params, query: {} })
+    }
     return
   }
-  debounceTimer = setTimeout(() => fetchSuggestions(searchQuery.value), 300)
+  debounceTimer = setTimeout(() => {
+    fetchSuggestions(q)
+    if (route.name === 'category') {
+      router.replace({ name: 'category', params: route.params, query: { search: q } })
+    }
+  }, 300)
 }
 
 // ---- Fetch from real API ----
@@ -208,6 +206,8 @@ const fetchSuggestions = async (query) => {
   }
 }
 
+
+
 const clearSearch = () => {
   searchQuery.value = ''
   filteredSuggestions.value = []
@@ -217,6 +217,7 @@ const clearSearch = () => {
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
     showSuggestions.value = false
+    // ไปหน้า Category พร้อมแนบ Query String (คุณต้องมั่นใจว่ามี route หน้า category รับค่านี้นะครับ)
     router.push(`/category?search=${encodeURIComponent(searchQuery.value)}`)
   }
 }
@@ -230,7 +231,11 @@ const goToProduct = (pdID) => {
 
 // sync search query จาก route
 watch(() => route.query.search, (search) => {
-  if (search) searchQuery.value = search
+  if (search) {
+    searchQuery.value = search
+  } else {
+    searchQuery.value = '' // เคลียร์ถ้าไม่มี query parameter
+  }
 }, { immediate: true })
 
 const logout = async () => {

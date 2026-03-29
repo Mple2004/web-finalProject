@@ -1,4 +1,21 @@
 import database from "../services/database.js";
+import multer from "multer";
+
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "img_prod"),
+  filename: (req, file, cb) => {
+    const id = req.body.pdID || req.params.id;
+    const ext = file.originalname.split('.').pop().toLowerCase();
+    const slot = file.fieldname.replace('image', ''); // '1','2','3'
+    cb(null, `${id}_${slot}.${ext}`);
+  },
+});
+
+export const uploadProduct = multer({ storage: productStorage }).fields([
+  { name: 'image1', maxCount: 1 },
+  { name: 'image2', maxCount: 1 },
+  { name: 'image3', maxCount: 1 },
+]);
 
 export const getAllProducts = async (req, res) => {
   console.log("GET /products");
@@ -60,22 +77,22 @@ export const postProduct = async (req, res) => {
       return res.status(409).json({ message: `ERROR pdID ${bodydata.pdID} already exists` });
     }
 
-    // Updated INSERT to match the columns in your image
+    const base = `http://localhost:${process.env.PORT || 5000}/img_prod`;
+    const pdImage  = req.files?.image1?.[0] ? `${base}/${req.files.image1[0].filename}` : null;
+    const pdImage2 = req.files?.image2?.[0] ? `${base}/${req.files.image2[0].filename}` : null;
+    const pdImage3 = req.files?.image3?.[0] ? `${base}/${req.files.image3[0].filename}` : null;
+
     const q = `
       INSERT INTO products (
-        "pdID", "pdName", "pdCategory", "pdSubCategory", 
-        "pdBrand", "pdCountry", "pdSize", "pdPrice"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+        "pdID", "pdName", "pdCategory", "pdSubCategory",
+        "pdBrand", "pdCountry", "pdSize", "pdPrice", "stock_qty",
+        "pdImage", "pdImage2", "pdImage3"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
     `;
     const values = [
-      bodydata.pdID,
-      bodydata.pdName,
-      bodydata.pdCategory,
-      bodydata.pdSubCategory,
-      bodydata.pdBrand,
-      bodydata.pdCountry,
-      bodydata.pdSize,
-      bodydata.pdPrice
+      bodydata.pdID, bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory,
+      bodydata.pdBrand, bodydata.pdCountry, bodydata.pdSize, bodydata.pdPrice,
+      bodydata.stock_qty ?? 0, pdImage, pdImage2, pdImage3,
     ];
     
     const result = await database.query(q, values);
@@ -94,29 +111,27 @@ export const putProduct = async (req, res) => {
   try {
     const bodydata = req.body;
     
-    // Updated UPDATE to match the image schema
+    const base = `http://localhost:${process.env.PORT || 5000}/img_prod`;
+    // New file wins; otherwise use keepImage value (empty string → null = remove)
+    const img1 = req.files?.image1?.[0] ? `${base}/${req.files.image1[0].filename}` : (req.body.keepImage1 !== undefined ? (req.body.keepImage1 || null) : null);
+    const img2 = req.files?.image2?.[0] ? `${base}/${req.files.image2[0].filename}` : (req.body.keepImage2 !== undefined ? (req.body.keepImage2 || null) : null);
+    const img3 = req.files?.image3?.[0] ? `${base}/${req.files.image3[0].filename}` : (req.body.keepImage3 !== undefined ? (req.body.keepImage3 || null) : null);
+
     const result = await database.query({
       text: `
       UPDATE products
-      SET "pdName" = $1, 
-          "pdCategory" = $2,
-          "pdSubCategory" = $3,
-          "pdBrand" = $4, 
-          "pdCountry" = $5,
-          "pdSize" = $6,
-          "pdPrice" = $7
-      WHERE "pdID" = $8
+      SET "pdName" = $1, "pdCategory" = $2, "pdSubCategory" = $3,
+          "pdBrand" = $4, "pdCountry" = $5, "pdSize" = $6,
+          "pdPrice" = $7, "stock_qty" = $8,
+          "pdImage" = $9, "pdImage2" = $10, "pdImage3" = $11
+      WHERE "pdID" = $12
       RETURNING *
       `,
       values: [
-        bodydata.pdName,
-        bodydata.pdCategory,
-        bodydata.pdSubCategory,
-        bodydata.pdBrand,
-        bodydata.pdCountry,
-        bodydata.pdSize,
-        bodydata.pdPrice,
-        req.params.id,
+        bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory,
+        bodydata.pdBrand, bodydata.pdCountry, bodydata.pdSize,
+        bodydata.pdPrice, bodydata.stock_qty ?? 0,
+        img1, img2, img3, req.params.id,
       ],
     });
 
@@ -285,6 +300,36 @@ export const getProductByCountry = async (req, res) => {
 };
 
 // ค้นหาสินค้าตามช่วงราคา (Price Range)
+export const getProductRankings = async (req, res) => {
+  try {
+    const [soldRes, wishRes] = await Promise.all([
+      database.query(`
+        SELECT ctd."pdId" AS "pdID", SUM(ctd.qty) AS sold
+        FROM "cartDtl" ctd
+        JOIN carts ct ON ctd.cart_id = ct.cart_id
+        WHERE ct.status IN ('paid', 'delivered')
+        GROUP BY ctd."pdId"
+      `),
+      database.query(`
+        SELECT "productID" AS "pdID", COUNT(*) AS "wishlistCount"
+        FROM wishlist
+        GROUP BY "productID"
+      `),
+    ]);
+    const rankings = {};
+    for (const r of soldRes.rows) {
+      rankings[r.pdID] = { sold: Number(r.sold), wishlistCount: 0 };
+    }
+    for (const r of wishRes.rows) {
+      if (!rankings[r.pdID]) rankings[r.pdID] = { sold: 0, wishlistCount: 0 };
+      rankings[r.pdID].wishlistCount = Number(r.wishlistCount);
+    }
+    res.status(200).json(rankings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const getProductByPriceRange = async (req, res) => {
   // รับค่า min และ max จาก Query String (?min=xxx&max=yyy)
   // ถ้าไม่ได้ส่งค่ามา จะตั้งค่าเริ่มต้นเป็น 0 ถึง 999,999

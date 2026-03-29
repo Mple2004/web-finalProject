@@ -66,7 +66,7 @@
           <span class="material-symbols-outlined">menu</span>
         </button>
         <div class="header-user">
-          <img :src="`https://api.dicebear.com/7.x/avataaars/svg?seed=${auth.user.value?.name}`" class="avatar">
+          <img :src="`http://localhost:5000/img_mem/${encodeURIComponent(auth.user.value?.email)}.jpg`" class="avatar">
           <div class="user-info">
             <p class="user-name">{{ auth.user.value?.name }}</p>
             <p class="user-role">{{ auth.user.value?.status }}</p>

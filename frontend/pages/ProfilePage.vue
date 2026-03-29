@@ -8,7 +8,6 @@
 
     <div class="container">
 
-      <!-- Stats Bar -->
       <div class="stats-bar">
         <div class="avatar-wrap">
           <img v-if="avatarUrl" :src="avatarUrl" class="avatar avatar-img" />
@@ -32,13 +31,12 @@
           </div>
           <div class="divider" />
           <div class="stat">
-            <span class="stat-num">{{ wishlistCount }}</span>
+            <span class="stat-num">{{ wishlistItems.length }}</span>
             <span class="stat-label">Wishlist</span>
           </div>
         </div>
       </div>
 
-      <!-- Account Form -->
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">
@@ -50,15 +48,15 @@
             Edit Profile
           </button>
           <div v-else class="action-btns">
-            <button class="cancel-btn" @click="cancelEdit">Cancel</button>
-            <button class="save-btn" @click="saveProfile">
-              <span class="material-symbols-outlined">check</span>
-              Save Changes
+            <button class="cancel-btn" @click="cancelEdit" :disabled="saving">Cancel</button>
+            <button class="save-btn" @click="saveProfile" :disabled="saving">
+              <span class="material-symbols-outlined" v-if="!saving">check</span>
+              <span class="material-symbols-outlined" v-else>sync</span>
+              {{ saving ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
         </div>
 
-        <!-- Avatar upload (editing only) -->
         <div v-if="editing" class="field">
           <label class="field-label">Profile Picture</label>
           <div class="avatar-upload">
@@ -66,11 +64,11 @@
             <div v-else class="avatar-preview initials">{{ user?.name?.charAt(0).toUpperCase() }}</div>
             <div class="upload-side">
               <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onFileChange" />
-              <button class="upload-btn" type="button" @click="fileInput.click()">
+              <button class="upload-btn" type="button" @click="fileInput.click()" :disabled="saving">
                 <span class="material-symbols-outlined">upload</span>
                 Choose Photo
               </button>
-              <button v-if="previewUrl" class="remove-btn" type="button" @click="previewUrl = ''">
+              <button v-if="previewUrl" class="remove-btn" type="button" @click="removePhoto" :disabled="saving">
                 <span class="material-symbols-outlined">delete</span>
                 Remove
               </button>
@@ -79,28 +77,25 @@
           </div>
         </div>
 
-        <!-- Name -->
         <div class="field">
           <label class="field-label">Name</label>
-          <input v-if="editing" v-model="form.name" class="input" placeholder="Your name" />
+          <input v-if="editing" v-model="form.name" class="input" placeholder="Your name" :disabled="saving" />
           <span v-else class="input readonly">{{ user?.name }}</span>
         </div>
 
-        <!-- Email -->
         <div class="field">
           <label class="field-label">Email</label>
-          <input v-if="editing" v-model="form.email" class="input" placeholder="Email address" />
+          <input v-if="editing" v-model="form.email" class="input" placeholder="Email address" :disabled="saving" />
           <span v-else class="input readonly muted">{{ user?.email }}</span>
         </div>
 
-        <!-- Password -->
         <div class="field">
           <label class="field-label">Current Password</label>
           <div v-if="editing" class="pw-wrap">
             <input v-model="form.currentPassword"
               :type="showPw.current ? 'text' : 'password'"
-              class="input" placeholder="Enter current password" />
-            <button class="pw-eye" @click="showPw.current = !showPw.current">
+              class="input" placeholder="Enter current password (required for password change)" :disabled="saving" />
+            <button class="pw-eye" @click="showPw.current = !showPw.current" type="button">
               <span class="material-symbols-outlined">{{ showPw.current ? 'visibility_off' : 'visibility' }}</span>
             </button>
           </div>
@@ -115,14 +110,13 @@
           <div class="pw-wrap">
             <input v-model="form.newPassword"
               :type="showPw.new ? 'text' : 'password'"
-              class="input" placeholder="New password (min. 6 characters)" />
-            <button class="pw-eye" @click="showPw.new = !showPw.new">
+              class="input" placeholder="New password (min. 6 characters)" :disabled="saving" />
+            <button class="pw-eye" @click="showPw.new = !showPw.new" type="button">
               <span class="material-symbols-outlined">{{ showPw.new ? 'visibility_off' : 'visibility' }}</span>
             </button>
           </div>
         </div>
 
-        <!-- Status -->
         <div class="field">
           <label class="field-label">Status</label>
           <span class="status-chip" :class="user?.status">{{ user?.status }}</span>
@@ -131,7 +125,6 @@
         <p v-if="formError" class="form-error">{{ formError }}</p>
       </div>
 
-      <!-- Order History -->
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">
@@ -168,7 +161,6 @@
         </div>
       </div>
 
-      <!-- Logout -->
       <div class="logout-row">
         <button class="logout-btn" @click="handleLogout">
           <span class="material-symbols-outlined">logout</span>
@@ -183,6 +175,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '../services/api' // <-- อย่าลืม import api
 import { useAuth } from '../stores/auth'
 import { useToast } from '../stores/toast'
 import { useOrders } from '../stores/orders'
@@ -191,20 +184,12 @@ const router = useRouter()
 const auth = useAuth()
 const toast = useToast()
 const orders = useOrders()
-const user = auth.user
+const user = computed(() => auth.user.value) // ใช้ computed เพื่อให้ชัวร์ว่าอัปเดตตาม store ทันที
 
 // ── Orders ────────────────────────────────────────
 const userOrders = ref([])
 const loadingOrders = ref(false)
-
-// ── Wishlist count (ถ้ามี store wishlist ให้ import มา ถ้าไม่มีใช้ 0) ──
-const wishlistCount = ref(0)
-// ถ้ามี useWishlist:
-// import { useWishlist } from '../stores/wishlist'
-// const wishlist = useWishlist()
-// const wishlistCount = computed(() => wishlist.ids.value.length)
-
-// ── memberSince ───────────────────────────────────
+const wishlistItems = ref([]) 
 const memberSince = ref('March 2026')
 
 // ── Avatar ────────────────────────────────────────
@@ -212,9 +197,11 @@ const avatarKey = () => `avatar_${user.value?.email}`
 const avatarUrl = ref('')
 const previewUrl = ref('')
 const fileInput = ref(null)
+const selectedFile = ref(null) // เก็บไฟล์จริงที่เลือกเพื่อส่งไป Backend
 
 // ── Edit ──────────────────────────────────────────
 const editing = ref(false)
+const saving = ref(false) // สถานะกำลังบันทึกข้อมูล
 const showPw = ref({ current: false, new: false })
 const formError = ref('')
 const form = ref({ name: '', email: '', currentPassword: '', newPassword: '' })
@@ -228,20 +215,34 @@ const totalSpent = computed(() =>
 onMounted(async () => {
   if (!auth.isLoggedIn.value) { router.push('/login'); return }
 
-  // โหลด avatar จาก localStorage
-  avatarUrl.value = localStorage.getItem(avatarKey()) || ''
+  // Try loading avatar from server first, fall back to localStorage
+  const email = user.value?.email
+  if (email) {
+    const serverUrl = `http://localhost:5000/img_mem/${encodeURIComponent(email)}.jpg`
+    const testImg = new Image()
+    testImg.onload = () => { avatarUrl.value = serverUrl }
+    testImg.onerror = () => { avatarUrl.value = localStorage.getItem(avatarKey()) || '' }
+    testImg.src = `${serverUrl}?t=${Date.now()}`
+  }
 
-  // โหลด orders จาก API จริง
   loadingOrders.value = true
   try {
     const res = await orders.getUserOrders()
-    // รองรับทั้ง array ตรงๆ และ { history: [...] }
     userOrders.value = Array.isArray(res) ? res : (res?.history ?? res?.data ?? [])
   } catch (err) {
     console.error('Failed to load orders:', err.message)
     userOrders.value = []
   } finally {
     loadingOrders.value = false
+  }
+// 3. โหลด Wishlist (เพิ่มเข้ามาเพื่อให้นับจำนวนได้ถูกต้อง)
+  try {
+    const wishlistData = await api.getWishlist()
+    // เช็คว่าข้อมูลที่ได้มาเป็น Array หรือซ้อนอยู่ใน .data
+    wishlistItems.value = Array.isArray(wishlistData) ? wishlistData : (wishlistData?.data ?? [])
+  } catch (err) {
+    console.error('Failed to load wishlist:', err.message)
+    wishlistItems.value = []
   }
 })
 
@@ -250,27 +251,39 @@ function onFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
   if (file.size > 2 * 1024 * 1024) { formError.value = 'Image must be under 2MB.'; return }
+  
+  selectedFile.value = file // เก็บไฟล์ไว้ส่ง API
   const reader = new FileReader()
   reader.onload = (ev) => { previewUrl.value = ev.target.result }
   reader.readAsDataURL(file)
 }
 
+function removePhoto() {
+  previewUrl.value = ''
+  selectedFile.value = null
+  if (fileInput.value) fileInput.value.value = ''
+}
+
 // ── Edit Profile ──────────────────────────────────
 function startEdit() {
-  form.value = { name: user.value.name, email: user.value.email, currentPassword: '', newPassword: '' }
-  previewUrl.value = avatarUrl.value
+  form.value = { name: user.value?.name, email: user.value?.email, currentPassword: '', newPassword: '' }
+  previewUrl.value = avatarUrl.value  // show current server photo as preview
+  selectedFile.value = null
   formError.value = ''
   editing.value = true
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function cancelEdit() {
   editing.value = false
+  saving.value = false
   showPw.value = { current: false, new: false }
   previewUrl.value = ''
+  selectedFile.value = null
   formError.value = ''
 }
 
-function saveProfile() {
+async function saveProfile() {
   formError.value = ''
   const name = form.value.name.trim()
   const email = form.value.email.trim()
@@ -281,24 +294,58 @@ function saveProfile() {
   if (form.value.newPassword) {
     if (!form.value.currentPassword) { formError.value = 'Please enter your current password.'; return }
     if (form.value.newPassword.length < 6) { formError.value = 'New password must be at least 6 characters.'; return }
-    // ถ้า backend มี API เปลี่ยน password ให้เรียกตรงนี้
   }
 
-  // อัปเดต user ใน store
-  user.value = { ...user.value, name, email }
+  saving.value = true // เปิดสถานะกำลังโหลด
+  
+  try {
+    // ใช้ FormData ในการส่งข้อมูลเพราะอาจจะมีรูปภาพด้วย
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('email', email) // ส่งอีเมลไปเพื่ออัปเดต หรือใช้เป็นตัวอ้างอิง
 
-  // ✅ บันทึก avatar ผ่าน auth store — Navbar จะอัปเดตทันที
-  if (previewUrl.value) {
-    auth.updateAvatar(previewUrl.value)
-    avatarUrl.value = previewUrl.value
-  } else if (avatarUrl.value === '') {
-    auth.removeAvatar()
+    if (form.value.newPassword) {
+      formData.append('currentPassword', form.value.currentPassword)
+      formData.append('newPassword', form.value.newPassword)
+    }
+
+    if (selectedFile.value) {
+      formData.append('file', selectedFile.value) // ไฟล์รูปภาพ
+    }
+
+    // 🔴 เรียก API: เปลี่ยนชื่อฟังก์ชันเป็นชื่อ API สำหรับอัปเดตโปรไฟล์ของคุณ
+    // สมมติว่าใน api.js คุณสร้างฟังก์ชัน updateProfile() ไว้
+    const res = await api.updateMemberWithFile(user.value.email, formData) // <-- ปรับชื่อฟังก์ชันให้ตรงกับ API ของคุณ
+
+    if (res.updated || res.success) {
+      // ✅ 1. อัปเดตข้อมูลใน Store เมื่อ API ตอบกลับว่าสำเร็จ
+      auth.user.value = { ...auth.user.value, name, email }
+      
+      // ✅ 2. จัดการรูปภาพ (ถ้า Backend คืน URL รูปมาให้เอามาใส่ตรงนี้ได้เลย)
+      if (previewUrl.value) {
+        auth.updateAvatar(previewUrl.value)
+        avatarUrl.value = previewUrl.value
+      } else if (previewUrl.value === '' && avatarUrl.value !== '') {
+        auth.removeAvatar()
+        avatarUrl.value = ''
+      }
+
+      // ปิดโหมดแก้ไข และเคลียร์รหัสผ่าน
+      editing.value = false
+      showPw.value  = { current: false, new: false }
+      form.value.currentPassword = ''
+      form.value.newPassword = ''
+      
+      toast.show('✓ Profile updated successfully')
+    } else {
+      formError.value = res.message || 'Failed to update profile.'
+    }
+  } catch (err) {
+    console.error(err)
+    formError.value = err.response?.data?.message || err.message || 'Error updating profile.'
+  } finally {
+    saving.value = false // ปิดสถานะกำลังโหลด
   }
-
-  editing.value = false
-  showPw.value  = { current: false, new: false }
-  previewUrl.value = ''
-  toast.show('✓ Profile updated')
 }
 
 function handleLogout() {

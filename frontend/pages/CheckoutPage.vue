@@ -344,8 +344,15 @@ onMounted(() => {
 .form-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .form-field label { font-size: 13px; font-weight: 600; color: var(--text-light); }
 .form-field input {
-  padding: 10px 14px; background: var(--bg-dark); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text-white); font-size: 14px; outline: none;
+  width: 100%; /* เพิ่มคำสั่งนี้เพื่อให้กล่องข้อความกว้างเต็มพอดีกับ Column */
+  box-sizing: border-box; /* เพิ่มคำสั่งนี้เพื่อไม่ให้ padding ไปเพิ่มความกว้างของกล่องล้นออกไป */
+  padding: 10px 14px; 
+  background: var(--bg-dark); 
+  border: 1px solid var(--border);
+  border-radius: var(--radius); 
+  color: var(--text-white); 
+  font-size: 14px; 
+  outline: none;
   transition: border-color 0.2s;
 }
 .form-field input:focus { border-color: var(--primary); }

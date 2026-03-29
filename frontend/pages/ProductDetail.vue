@@ -6,7 +6,7 @@
       <span class="material-symbols-outlined crumb-sep">chevron_right</span>
       <router-link to="/category" class="crumb-link">Category</router-link>
       <span class="material-symbols-outlined crumb-sep">chevron_right</span>
-      <router-link :to="`/category/${product.subcategory.toLowerCase()}`" class="crumb-link">{{ product.subcategory }}</router-link>
+      <router-link :to="`/category/${product.category.toLowerCase()}`" class="crumb-link">{{ product.category }}</router-link>
 
       <span class="material-symbols-outlined crumb-sep">chevron_right</span>
       <span class="crumb-current">{{ product.name }}</span>
@@ -174,6 +174,9 @@ function mapProduct(p) {
     abv: '',
     description: `${p.pdBrand} — ${p.pdSubCategory} จาก ${p.pdCountry}`,
     image: p.pdImage || `https://placehold.co/600x600?text=${encodeURIComponent(p.pdName)}`,
+    images: [p.pdImage, p.pdImage2, p.pdImage3]
+      .filter(Boolean)
+      .map(url => url),
     tag: null,
     reviews: 0,
     rating: 4,
@@ -185,11 +188,8 @@ function mapProduct(p) {
 
 const thumbImages = computed(() => {
   if (!product.value) return []
-  const others = allProducts.value
-    .filter(p => p.id !== product.value.id)
-    .slice(0, 2)
-    .map(p => p.image)
-  return [product.value.image, ...others]
+  const imgs = product.value.images?.length ? product.value.images : [product.value.image]
+  return imgs
 })
 
 const relatedProducts = computed(() => {
@@ -208,7 +208,7 @@ const tagLabel = computed(() => {
 })
 
 watch(product, p => {
-  if (p) { mainImage.value = p.image; qty.value = 1; showSpecs.value = false; showShip.value = false }
+  if (p) { mainImage.value = p.images?.[0] || p.image; qty.value = 1; showSpecs.value = false; showShip.value = false }
 }, { immediate: true })
 
 function addProduct() {
@@ -223,26 +223,26 @@ function goTo(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// แก้: ดึงสินค้าจาก API จริง
-onMounted(async () => {
+async function loadProduct(id) {
   try {
-    const id = route.params.id
-
-    // ดึงสินค้าเดี่ยวตาม ID
+    product.value = null
     const data = await api.getProductById(id)
     if (Array.isArray(data) && data.length > 0) {
       product.value = mapProduct(data[0])
-      mainImage.value = product.value.image
+      mainImage.value = product.value.images?.[0] || product.value.image
     }
-
-    // ดึงสินค้าทั้งหมดสำหรับ related products
-    const allData = await api.getProducts()
-    allProducts.value = Array.isArray(allData) ? allData.map(mapProduct) : []
-
+    if (allProducts.value.length === 0) {
+      const allData = await api.getProducts()
+      allProducts.value = Array.isArray(allData) ? allData.map(mapProduct) : []
+    }
   } catch (err) {
     console.error('ProductDetail load error:', err.message)
   }
-})
+}
+
+watch(() => route.params.id, (id) => { if (id) loadProduct(id) }, { immediate: true })
+
+onMounted(() => {})
 </script>
 
 <style scoped>

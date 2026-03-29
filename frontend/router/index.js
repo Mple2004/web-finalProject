@@ -9,6 +9,11 @@ import ProfilePage from '../pages/ProfilePage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
 import OrderHistoryPage from '../pages/OrderHistoryPage.vue'
 import WishlistPage from '../pages/WishlistPage.vue'
+import AdminLayout from '../pages/admin/AdminLayout.vue'
+import AdminDashboard from '../pages/admin/AdminDashboard.vue'
+import AdminProducts from '../pages/admin/AdminProducts.vue'
+import AdminMembers from '../pages/admin/AdminMembers.vue'
+import AdminOrders from '../pages/admin/AdminOrders.vue'
 
 const routes = [
   { path: '/',              name: 'home',           component: HomeView },
@@ -20,6 +25,19 @@ const routes = [
   { path: '/checkout',      name: 'checkout',       component: CheckoutPage,  meta: { requiresAuth: true } },
   { path: '/orders',        name: 'orders',         component: OrderHistoryPage, meta: { requiresAuth: true } },
   { path: '/wishlist',      name: 'wishlist',       component: WishlistPage,  meta: { requiresAuth: true } },
+  { path: '/contact',       name: 'contact',        component: () => import('../pages/ContactPage.vue') },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      { path: '',          redirect: '/admin/dashboard' },
+      { path: 'dashboard', name: 'admin-dashboard', component: AdminDashboard },
+      { path: 'products',  name: 'admin-products',  component: AdminProducts },
+      { path: 'members',   name: 'admin-members',   component: AdminMembers },
+      { path: 'orders',    name: 'admin-orders',    component: AdminOrders },
+    ],
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
@@ -31,7 +49,6 @@ const router = createRouter({
   }
 })
 
-// ✅ flag ป้องกันเรียก restoreSession ซ้ำ
 let sessionRestored = false
 
 router.beforeEach(async (to, from) => {
@@ -44,6 +61,10 @@ router.beforeEach(async (to, from) => {
 
   if (to.meta.requiresAuth && !auth.isLoggedIn.value) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAdmin && auth.user.value?.status !== 'admin') {
+    return { name: 'home' }
   }
 
   if (to.meta.guestOnly && auth.isLoggedIn.value) {

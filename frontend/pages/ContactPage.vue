@@ -39,7 +39,7 @@
               <span class="material-symbols-outlined info-icon">mail</span>
               <div>
                 <div class="info-label">Email</div>
-                <div class="info-value">hello@spiritandvine.com</div>
+                <div class="info-value">test@test.com</div>
               </div>
             </div>
 

@@ -9,10 +9,13 @@ import {
   getProductByBrandId,
   getThreeProducts,
   getSearchProduct,
+  getFilteredProducts,
   getProductByCategory,
   getProductBySubCategory,
   getProductByCountry,
   getProductByPriceRange,
+  getProductRankings,
+  uploadProduct,
 } from "../controller/ProductController.js";
 
 const router = express.Router();
@@ -42,7 +45,9 @@ const router = express.Router();
  *       200:
  *         description: รายการสินค้าที่ตรงกับคำค้นหา (Array)
  */
+router.get("/products/rankings", getProductRankings);
 router.get("/products/search/:id", getSearchProduct);
+router.get("/products/filter", getFilteredProducts);
 
 /**
  * @swagger
@@ -214,7 +219,7 @@ router.get("/products", getAllProducts);
  *                   type: boolean
  *                   example: true
  */
-router.post("/products", postProduct);
+router.post("/products", uploadProduct, postProduct);
 
 /**
  * @swagger
@@ -311,7 +316,7 @@ router.get("/products/:id", getProductById);
  *       404:
  *         description: ไม่พบสินค้า
  */
-router.put("/products/:id", putProduct);
+router.put("/products/:id", uploadProduct, putProduct);
 
 /**
  * @swagger
