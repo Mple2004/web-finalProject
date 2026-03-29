@@ -62,9 +62,15 @@
                 </div>
               </td>
               <td>
-                <button @click="viewOrder(order)" class="view-btn">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
+                <div class="action-buttons">
+                  <button @click="viewOrder(order)" class="action-btn view" title="View Details">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                  
+                  <button @click="confirmDelete(order.orderId)" class="action-btn delete" title="Delete Order">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -205,6 +211,31 @@ async function viewOrder(order) {
     toast.show('❌ Failed to load order details')
   } finally {
     loadingDetail.value = false
+  }
+}
+
+// เพิ่มฟังก์ชันสำหรับลบ Order
+async function confirmDelete(orderId) {
+  // 1. ถามเพื่อยืนยันการลบ
+  if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบออเดอร์ #${orderId}? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
+    return
+  }
+
+  try {
+    // 2. เรียก API ที่คุณเพิ่งเพิ่มใน backend
+    const res = await api.deleteOrder(orderId)
+    
+    if (res.success) {
+      // 3. อัปเดต UI ทันทีโดยการกรองออเดอร์ที่ถูกลบออกไปจาก List
+      orders.value = orders.value.filter(o => o.orderId !== orderId)
+      
+      toast.show(`✓ ลบออเดอร์ #${orderId} สำเร็จ`)
+    } else {
+      toast.show('❌ ไม่สามารถลบได้: ' + res.message)
+    }
+  } catch (error) {
+    console.error('Delete error:', error)
+    toast.show('❌ เกิดข้อผิดพลาดในการลบข้อมูล')
   }
 }
 
@@ -596,6 +627,48 @@ async function updateOrderStatus(orderId, newStatus) {
 
 .btn-secondary:hover {
   background: var(--primary-20);
+}
+
+/* คอนเทนเนอร์คุมปุ่มให้เรียงกัน */
+.action-buttons {
+  display: flex;
+  gap: 8px; /* ระยะห่างระหว่างปุ่ม */
+  align-items: center;
+}
+
+/* สไตล์พื้นฐานที่เหมือนกันของทั้งสองปุ่ม */
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--primary-10); /* พื้นหลังจางๆ สีหลัก */
+  border: 1px solid var(--primary); /* เส้นขอบสีหลัก */
+  border-radius: 6px;
+  color: var(--primary); /* ไอคอนสีหลัก */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+}
+
+.action-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* เอฟเฟกต์ตอนเอาเมาส์วาง (Hover) */
+.action-btn:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(212, 17, 50, 0.2);
+}
+
+/* (Option) ถ้าอยากให้ปุ่มลบตอน Hover เป็นสีแดงเข้มเพื่อเตือนความปลอดภัย */
+.action-btn.delete:hover {
+  background: #dc3545; /* สีแดง */
+  border-color: #dc3545;
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
 }
 
 @media (max-width: 768px) {

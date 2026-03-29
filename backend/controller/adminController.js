@@ -109,7 +109,7 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// ฟังก์ชันสำหรับลบออเดอร์
+// ฟังก์ชันสำหรับลบออเดอร์ 5.20am
 export const deleteOrder = async (req, res) => {
   if (checkAdmin(req, res) !== true) return;
   

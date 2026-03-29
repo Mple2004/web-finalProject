@@ -211,5 +211,10 @@ export default {
     const res = await http.delete(`/admin/members/${email}`)
     return res.data
   },
+
+  async deleteOrder(orderId) {
+    const res = await http.delete(`/admin/orders/${orderId}`)
+    return res.data
+  }
   
 }
