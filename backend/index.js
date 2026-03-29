@@ -14,6 +14,7 @@ import memberRoute from "./router/memberRoute.js";
 import transactionRoute from "./router/transactionRoute.js";
 import cartRoute from "./router/cartRoute.js";
 import wishlistRoute from "./router/wishlistRoute.js";
+import adminRoute from "./router/adminRoute.js";
 
 dotenv.config();
 
@@ -77,6 +78,7 @@ app.use(memberRoute);
 app.use(cartRoute);
 app.use(transactionRoute);
 app.use(wishlistRoute);
+app.use(adminRoute);
 
 app.get("/", (req, res) => {
   res.json({ info: "Hello World", message: "Ok" });
