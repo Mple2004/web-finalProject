@@ -25,6 +25,18 @@ export default {
   async logout() {
     await http.post('/members/logout')
   },
+  async updateProfile(name, newPassword) {
+  try {
+    const res = await http.put('/members/profile', { 
+      name: name, 
+      newPassword: newPassword 
+    })
+    return res.data
+  } catch (error) {
+    console.error('Error updateProfile:', error)
+    throw error
+  }
+},
 
   // ─── PRODUCTS ─────────────────────────────────────
   async getProducts() {

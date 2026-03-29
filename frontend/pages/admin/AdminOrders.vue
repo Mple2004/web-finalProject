@@ -43,7 +43,7 @@
           <tbody>
             <tr v-for="order in filteredOrders" :key="order.orderId">
               <td class="order-id">#{{ order.orderId }}</td>
-              <td>{{ order.customerName }}</td>
+              <td class="customer-Email">{{ order.customer }}</td>
               <td>{{ formatDate(order.date) }}</td>
               <td class="items-count">{{ order.items }} item(s)</td>
               <td class="total">฿{{ Number(order.total).toLocaleString() }}</td>
