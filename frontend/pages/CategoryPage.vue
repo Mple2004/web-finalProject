@@ -18,9 +18,11 @@
     <div class="layout">
       <SidebarFilter
         class="desktop-sidebar"
+        :main-category="mainCategory"
+        :main-categories="mainCategories"
         :subcategories="subcategories"
         :regions="allRegions"
-        :total-count="allProducts.length"
+        :total-count="filteredProducts.length"
         :model-subcategory="activeSubcategory"
         :model-min-price="minPrice"
         :model-max-price="maxPrice"
@@ -29,6 +31,7 @@
         @update:modelMinPrice="minPrice = $event"
         @update:modelMaxPrice="maxPrice = $event"
         @update:modelRegions="selectedRegions = $event"
+        @select-main-category="handleSelectMainCategory"
       />
 
       <div class="content">
@@ -139,7 +142,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useCart } from '../stores/cart'
 import { useToast } from '../stores/toast'
@@ -148,6 +151,7 @@ import { useLoginModal } from '../stores/loginModal'
 import ProductCard from '../components/ProductCard.vue'
 import SidebarFilter from '../components/SidebarFilter.vue'
 
+const router = useRouter()
 const route = useRoute()
 const cart = useCart()
 const toast = useToast()
@@ -155,8 +159,11 @@ const auth = useAuth()
 const loginModal = useLoginModal()
 
 const loading = ref(true)
-const allProducts = ref([])
+const allProducts = ref([])       // สินค้าของ category ที่กำลังดูอยู่
+const allProductsCache = ref([])  // ✅ เก็บสินค้าทั้งหมดไว้คำนวณ mainCategories
+const mainCategory = ref('')
 const activeSubcategory = ref('')
+
 const minPrice = ref(0)
 const maxPrice = ref(9999)
 const selectedRegions = ref([])
@@ -186,25 +193,76 @@ function mapProduct(p) {
   }
 }
 
-const subcategories = computed(() => {
-  const m = {}
-  allProducts.value.forEach(p => { m[p.subcategory] = (m[p.subcategory] || 0) + 1 })
-  return Object.entries(m).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+// ✅ โหลด cache ทั้งหมดครั้งเดียวตอน mount
+onMounted(async () => {
+  try {
+    const data = await api.getProducts()
+    const raw = Array.isArray(data) ? data : (data.data ?? [])
+    allProductsCache.value = raw.map(mapProduct)
+  } catch (err) {
+    console.error('Failed to load cache:', err.message)
+  }
 })
 
+// ✅ โหลด products ตาม category
+async function loadProducts(category) {
+  loading.value = true
+  try {
+    let data
+    if (category) {
+      data = await api.getProductsByCategory(category)
+    } else {
+      data = await api.getProducts()
+    }
+    const raw = Array.isArray(data) ? data : (data.data ?? [])
+    allProducts.value = raw.map(mapProduct)
+  } catch (err) {
+    console.error('Failed to load products:', err.message)
+    allProducts.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// ✅ mainCategories จาก cache — ไม่หายเมื่อกรอง
+const mainCategories = computed(() => {
+  const m = {}
+  allProductsCache.value.forEach(p => {
+    if (p.category) m[p.category] = (m[p.category] || 0) + 1
+  })
+  return Object.entries(m)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+// ✅ Subcategories จาก allProducts (เฉพาะ category ที่กำลังดู)
+const subcategories = computed(() => {
+  const m = {}
+  allProducts.value.forEach(p => {
+    if (p.subcategory) m[p.subcategory] = (m[p.subcategory] || 0) + 1
+  })
+  return Object.entries(m)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+})
+
+// ✅ Regions จาก allProducts (เฉพาะ category ที่กำลังดู)
 const allRegions = computed(() => {
   const s = new Set()
   allProducts.value.forEach(p => { if (p.region) s.add(p.region) })
   return [...s].sort()
 })
 
-const collectionTitle = computed(() =>
-  activeSubcategory.value ? `${activeSubcategory.value} Collection` : 'All Spirits Collection'
-)
+const collectionTitle = computed(() => {
+  if (activeSubcategory.value) return `${activeSubcategory.value} Collection`
+  if (mainCategory.value) return `${mainCategory.value} Collection`
+  return 'All Collection'
+})
 
 const filteredProducts = computed(() => {
   let list = [...allProducts.value]
-  if (activeSubcategory.value) list = list.filter(p => p.subcategory === activeSubcategory.value)
+  if (activeSubcategory.value)
+    list = list.filter(p => p.subcategory === activeSubcategory.value)
   if (minPrice.value > 0 || maxPrice.value < 9999)
     list = list.filter(p => p.price >= minPrice.value && p.price <= maxPrice.value)
   if (selectedRegions.value.length)
@@ -222,7 +280,6 @@ const paginatedProducts = computed(() => {
   return filteredProducts.value.slice(s, s + perPage)
 })
 
-// แก้: แปลง displayPages เป็น array of objects เพื่อหลีกเลี่ยง v-if กับ v-for
 const pageItems = computed(() => {
   const tp = totalPages.value
   const raw = []
@@ -235,7 +292,6 @@ const pageItems = computed(() => {
     if (page.value < tp - 2) raw.push('...')
     raw.push(tp)
   }
-  // แปลงเป็น object พร้อม key unique
   let dotCount = 0
   return raw.map(pg => {
     if (pg === '...') {
@@ -246,16 +302,20 @@ const pageItems = computed(() => {
   })
 })
 
-watch([activeSubcategory, minPrice, maxPrice, selectedRegions, sortBy], () => { page.value = 1 })
-
-watch(() => route.params.slug, (slug) => {
+watch([activeSubcategory, minPrice, maxPrice, selectedRegions, sortBy], () => {
   page.value = 1
+})
+
+watch(() => route.params.id, (id) => {
+  page.value = 1
+  activeSubcategory.value = ''
   selectedRegions.value = []
   minPrice.value = 0
   maxPrice.value = 9999
-  activeSubcategory.value = slug
-    ? slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase()
+  mainCategory.value = id
+    ? id.charAt(0).toUpperCase() + id.slice(1).toLowerCase()
     : ''
+  loadProducts(mainCategory.value)
 }, { immediate: true })
 
 function handleAdd(p) {
@@ -263,20 +323,18 @@ function handleAdd(p) {
   cart.add(p)
   toast.show(`✓ Added "${p.name}"`)
 }
-function toggleWish(id) { wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id) }
 
-onMounted(async () => {
-  loading.value = true
-  try {
-    const data = await api.getProducts()
-    allProducts.value = Array.isArray(data) ? data.map(mapProduct) : []
-  } catch (err) {
-    console.error('Failed to load products:', err.message)
-    allProducts.value = []
-  } finally {
-    loading.value = false
+function toggleWish(id) {
+  wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id)
+}
+
+function handleSelectMainCategory(category) {
+  if (category) {
+    router.push(`/category/${category}`)
+  } else {
+    router.push('/category')
   }
-})
+}
 </script>
 
 <style scoped>

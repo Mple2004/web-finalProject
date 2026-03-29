@@ -9,18 +9,22 @@
           </h3>
           <button class="close-btn" @click="cart.close()">&times;</button>
         </div>
+
         <div class="sidebar-body">
           <div v-if="cart.state.items.length === 0" class="empty">
             <span class="material-symbols-outlined empty-icon">shopping_cart</span>
             <p>Your cart is empty</p>
           </div>
+
           <div v-for="item in cart.state.items" :key="item.id" class="cart-item">
             <div class="item-img">
-              <img :src="item.image" />
+              <img :src="item.image" :alt="item.name" />
             </div>
             <div class="item-info">
               <p class="item-name">{{ item.name }}</p>
-              <p class="item-price">${{ item.price.toFixed(2) }}</p>
+              <p v-if="item.volume" class="item-volume">{{ item.volume }}</p>
+              <p class="item-price">฿{{ item.price.toFixed(2) }}</p>
+              
               <div class="qty-controls">
                 <button class="qty-btn" @click="cart.updateQty(item.id, -1)">−</button>
                 <span class="qty-val">{{ item.qty }}</span>
@@ -29,10 +33,11 @@
             </div>
           </div>
         </div>
+
         <div v-if="cart.state.items.length > 0" class="sidebar-footer">
           <div class="total-row">
             <span>Total</span>
-            <span class="total-price">${{ cart.total.value.toFixed(2) }}</span>
+            <span class="total-price">฿{{ cart.total.value.toFixed(2) }}</span>
           </div>
           <button class="checkout-btn" @click="handleCheckout">
             <span class="material-symbols-outlined">shopping_cart_checkout</span>
@@ -47,8 +52,10 @@
 <script setup>
 import { useCart } from '../stores/cart.js'
 import { useRouter } from 'vue-router'
+
 const cart = useCart()
 const router = useRouter()
+
 function handleCheckout() {
   cart.close()
   router.push('/checkout')
@@ -56,28 +63,14 @@ function handleCheckout() {
 </script>
 
 <style scoped>
-.overlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  display:flex;
-  justify-content:flex-end;
-  z-index:999;
+.item-volume {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
 }
-.panel{
-  width:380px;
-  height:100%;
-  background:#111;
-  color:white;
-  padding:20px;
-
-  transform: translateX(100%);
-  animation: slideIn .35s forwards;
-}
-@keyframes slideIn{
-  to{
-    transform: translateX(0);
-  }
+.overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); z-index: 1000;
 }
 .sidebar {
   position: absolute; top: 0; right: 0; bottom: 0;
@@ -104,12 +97,6 @@ function handleCheckout() {
 .item-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item-price { font-size: 14px; font-weight: 700; color: var(--primary); }
 .qty-controls { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
-.qty-btn {
-  width: 24px; height: 24px; border-radius: 4px;
-  background: var(--primary-10); color: var(--primary);
-  font-size: 12px; display: flex; align-items: center; justify-content: center;
-}
-.qty-btn:hover { background: var(--primary-20); }
 .qty-val { font-size: 12px; font-weight: 700; width: 16px; text-align: center; }
 .sidebar-footer { padding: 24px; border-top: 1px solid var(--border); }
 .total-row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 16px; }

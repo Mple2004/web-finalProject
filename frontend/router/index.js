@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// สมมติว่าไฟล์อยู่ในโฟลเดอร์ views ทั้งหมด
+import { useAuth } from '../stores/auth'
+
 import HomeView from '../pages/HomeView.vue'
 import CategoryPage from '../pages/CategoryPage.vue'
 import ProductDetail from '../pages/ProductDetail.vue'
@@ -66,24 +67,44 @@ const router = createRouter({
   }
 })
 
-/**
- * 🛡️ Navigation Guard
- * ตรวจสอบสถานะการ Login ก่อนเข้าหน้า Profile หรือ Checkout
- */
-router.beforeEach((to, from, next) => {
-  // ตรวจสอบ Token ใน Cookie (เนื่องจาก Backend ใช้ cookie-parser และ credentials: true)
-  const hasToken = document.cookie.split(';').some(c => c.trim().startsWith('token='))
+router.beforeEach(async (to, from) => {
+  const auth = useAuth()
   
-  // กรณีหน้าต้อง Login แต่ไม่มี Token
-  if (to.meta.requiresAuth && !hasToken) {
-    next({ name: 'login' })
-  } 
-  // กรณี Login แล้วแต่จะเข้าหน้า Login/Register อีก
-  else if (to.meta.guestOnly && hasToken) {
-    next({ name: 'home' })
-  } 
-  else {
-    next()
+  // ตรวจสอบว่ามีข้อมูล user หรือไม่
+  // (ถ้าใช้ ref ต้องใช้ .value แต่ถ้า return object ปกติก็ใช้ auth.isLoggedIn)
+  const isLoggedIn = auth.isLoggedIn.value 
+
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    // ถ้าจะไปหน้าเป้าหมายแต่ไม่ได้ login ให้เด้งไป login
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  
+  if (to.meta.guestOnly && isLoggedIn) {
+    // ถ้า login แล้วแต่อยากไปหน้า register/login ให้ดีดกลับไป home
+    return { name: 'home' }
+  }
+})
+
+
+
+/**
+ * 🛡️ Navigation Guard (ฉบับแก้ไข Circular Dependency)
+ */
+router.beforeEach(async (to, from) => {
+  // ✅ ย้ายมาเรียกใช้ข้างในนี้แทนการเรียกข้างบนสุด
+  // ต้อง import useAuth มาไว้ข้างบนไฟล์ แต่ห้ามเรียกใช้จนกว่าจะเข้า function นี้
+  const auth = useAuth() 
+  
+  // เช็คว่าโหลด Session เสร็จหรือยัง (ถ้าคุณทำระบบ isReady)
+  // หรือเช็คจากตัวแปร isLoggedIn ตรงๆ
+  const isLoggedIn = auth.isLoggedIn.value 
+
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  
+  if (to.meta.guestOnly && isLoggedIn) {
+    return { name: 'home' }
   }
 })
 

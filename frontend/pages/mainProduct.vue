@@ -12,57 +12,28 @@
           </div>
         </div>
         <router-link to="/category" class="view-all">
-          View All
-          <span class="material-symbols-outlined arrow">arrow_forward</span>
+          View All <span class="material-symbols-outlined arrow">arrow_forward</span>
         </router-link>
       </div>
 
-      <!-- Product Grid -->
-      <div class="product-grid">
-        <div
-          v-for="product in products"
-          :key="product.id"
-          class="product-card"
-          @click="goToProduct(product.id)"
-        >
-          <!-- Image -->
-          <div class="card-img-wrap">
-            <img :src="product.image" :alt="product.name" class="card-img" />
-            <!-- Tag -->
-            <span v-if="product.tag" class="card-tag">{{ product.tag }}</span>
-            <!-- Wishlist -->
-            <button class="wishlist-btn" @click.stop>
-              <span class="material-symbols-outlined">favorite</span>
-            </button>
-            <!-- Hover Add to Cart -->
-            <div class="hover-action">
-              <button class="add-cart-btn" @click.stop="addToCart(product)">
-                Add to Cart
-              </button>
-            </div>
-          </div>
-          <!-- Info -->
-          <div class="card-info">
-            <div class="card-top">
-              <h3 class="card-name">{{ product.name }}</h3>
-              <span class="card-price">${{ product.price.toFixed(2) }}</span>
-            </div>
-            <p class="card-meta">{{ product.volume }} | {{ product.region }}</p>
-            <div class="card-stars">
-              <span
-                v-for="i in 5" :key="i"
-                class="material-symbols-outlined star"
-                :class="{ filled: i <= Math.floor(product.rating), half: i === Math.ceil(product.rating) && product.rating % 1 !== 0 }"
-              >{{ i <= Math.floor(product.rating) ? 'star' : (i - 0.5 <= product.rating ? 'star_half' : 'star') }}</span>
-            </div>
-          </div>
-        </div>
+      <!-- Loading -->
+      <div v-if="loading" class="loading-grid">
+        <div v-for="i in 4" :key="i" class="skeleton-card" />
+      </div>
+
+      <!-- ✅ ใช้ ProductCard แทน inline card -->
+      <div v-else class="product-grid">
+        <ProductCard
+          v-for="(product, i) in products" :key="product.id"
+          :product="product"
+          :delay="i * 60"
+          :is-wishlisted="wishlist.has(product.id)"
+          @add-to-cart="addToCart"
+          @toggle-wishlist="toggleWish"
+        />
       </div>
     </section>
-    
 
-
-    
     <!-- ================ BEST SELLER ================ -->
     <section class="featured bestseller">
       <div class="featured-header">
@@ -74,49 +45,29 @@
           </div>
         </div>
         <router-link to="/category" class="view-all">
-          View All
-          <span class="material-symbols-outlined arrow">arrow_forward</span>
+          View All <span class="material-symbols-outlined arrow">arrow_forward</span>
         </router-link>
       </div>
 
-      <div class="product-grid">
-        <div
-          v-for="product in bestSellers"
-          :key="product.id"
-          class="product-card"
-          @click="goToProduct(product.id)"
-        >
-          <div class="card-img-wrap">
-            <img :src="product.image" :alt="product.name" class="card-img" />
-            <span v-if="product.tag" class="card-tag">{{ product.tag }}</span>
-            <button class="wishlist-btn" @click.stop>
-              <span class="material-symbols-outlined">favorite</span>
-            </button>
-            <div class="hover-action">
-              <button class="add-cart-btn" @click.stop="addToCart(product)">Add to Cart</button>
-            </div>
-          </div>
-          <div class="card-info">
-            <div class="card-top">
-              <h3 class="card-name">{{ product.name }}</h3>
-              <span class="card-price">${{ product.price.toFixed(2) }}</span>
-            </div>
-            <p class="card-meta">{{ product.volume }} | {{ product.region }}</p>
-            <div class="card-stars">
-              <span
-                v-for="i in 5" :key="i"
-                class="material-symbols-outlined star"
-                :class="{ filled: i <= Math.floor(product.rating) }"
-              >{{ i <= Math.floor(product.rating) ? 'star' : (i - 0.5 <= product.rating ? 'star_half' : 'star') }}</span>
-              <span class="review-count">({{ product.reviews }})</span>
-            </div>
-          </div>
-        </div>
+      <div v-if="loading" class="loading-grid">
+        <div v-for="i in 4" :key="i" class="skeleton-card" />
+      </div>
+
+      <!-- ✅ ใช้ ProductCard แทน inline card -->
+      <div v-else class="product-grid">
+        <ProductCard
+          v-for="(product, i) in bestSellers" :key="product.id"
+          :product="product"
+          :delay="i * 60"
+          :is-wishlisted="wishlist.has(product.id)"
+          @add-to-cart="addToCart"
+          @toggle-wishlist="toggleWish"
+        />
       </div>
     </section>
 
     <!-- ================ MEMBERSHIP CTA ================ -->
-    <section class="membership">
+    <section v-if="!auth.isLoggedIn.value" class="membership">
       <div class="member-inner">
         <h2 class="member-title">
           Join the <em class="member-accent">Inner Circle</em>
@@ -126,9 +77,7 @@
           limited edition releases, member-only pricing, and invitations
           to private tasting events.
         </p>
-        <router-link to="/register" class="btn-membership">
-          Sign Up for Membership
-        </router-link>
+        <router-link to="/register" class="btn-membership">Sign Up for Membership</router-link>
         <p class="member-signin">
           Already a member? <router-link to="/login" class="signin-link">Sign in here</router-link>
         </p>
@@ -152,13 +101,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'  // เพิ่ม reactive
 import { useRouter } from 'vue-router'
-import { MOCK_PRODUCTS, CATEGORY_CARDS } from '../data/mockData.js'
+import api from '../services/api'
 import { useCart } from '../stores/cart'
 import { useToast } from '../stores/toast'
 import { useAuth } from '../stores/auth'
 import { useLoginModal } from '../stores/loginModal'
+import ProductCard from '../components/ProductCard.vue'
 
 const router = useRouter()
 const cart = useCart()
@@ -166,45 +116,69 @@ const toast = useToast()
 const auth = useAuth()
 const loginModal = useLoginModal()
 
-//const goToProduct = (id) => router.push(`/product/${id}`)
-const goToProduct = (pdID) => {
-  router.push({ name: 'product-detail', params: { id: pdID } });
-};
+const products = ref([])      // Featured (top 4 by rating)
+const bestSellers = ref([])   // Best Sellers (top 4 by id หรือ field อื่น)
+const loading = ref(true)
+const wishlist = reactive(new Set())
+
+// ── CATEGORY_CARDS คงไว้เป็น static เพราะเป็นแค่รูปตกแต่ง ──
+const CATEGORY_CARDS = [
+  { title: 'Whisky',  subtitle: 'Single malts & blends',   image: 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=600' },
+  { title: 'Wine',    subtitle: 'Reds, whites & rosés',    image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600' },
+  { title: 'Beer',    subtitle: 'Craft & premium lagers',  image: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600' },
+]
+
+function mapProduct(p) {
+  return {
+    id:          p.pdID,
+    name:        p.pdName,
+    price:       Number(p.pdPrice),
+    image:       p.pdImage || `https://placehold.co/400x400?text=${encodeURIComponent(p.pdName)}`,
+    volume:      p.pdSize ? `${p.pdSize}ml` : '',
+    region:      p.pdCountry ?? '',
+    rating:      Number(p.pdRating)  || 0,
+    reviews:     Number(p.pdReviews) || 0,
+    tag:         p.pdTag === 'LIMITED' ? 'LIMITED' : null,
+    // ✅ เพิ่ม field ที่ ProductCard ใช้
+    description: `${p.pdBrand ?? ''} · ${p.pdSubCategory ?? ''}`,
+    abv:         '',
+    oldPrice:    null,
+  }
+}
+
+function toggleWish(id) {
+  wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id)
+}
+
+onMounted(async () => {
+  try {
+    const data = await api.getProducts()
+    const raw = (Array.isArray(data) ? data : (data.data ?? [])).map(mapProduct)
+
+    // Featured — top 4 by rating
+    products.value = [...raw]
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 4)
+
+    // Best Sellers — top 4 by reviews (ถ้า backend ไม่มี field นี้ใช้ sort by id desc แทน)
+    bestSellers.value = [...raw]
+      .sort((a, b) => b.reviews - a.reviews || b.id - a.id)
+      .slice(0, 4)
+
+  } catch (err) {
+    console.error('HomePage: failed to load products', err.message)
+  } finally {
+    loading.value = false
+  }
+})
+
+const goToProduct = (id) => router.push({ name: 'product-detail', params: { id } })
 
 function addToCart(product) {
-  if (!auth.isLoggedIn.value) {
-    loginModal.show()
-    return
-  }
+  if (!auth.isLoggedIn.value) { loginModal.show(); return }
   cart.add(product)
   toast.show(`✓ Added "${product.name}"`)
 }
-
-
-/* Best Sellers — top 4 by review count */
-const bestSellers = computed(() =>
-  [...MOCK_PRODUCTS]
-    .sort((a, b) => b.reviews - a.reviews)
-    .slice(0, 4)
-    .map(p => ({ id: p.id, name: p.name, price: p.price, image: p.image || null, volume: p.volume, region: p.region, rating: p.rating, reviews: p.reviews, tag: p.tag === 'LIMITED' ? 'LIMITED' : null }))
-)
-
-/* Format product data */
-const products = computed(() => {
-  return [...MOCK_PRODUCTS]
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, 4)
-    .map(p => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      image: p.image || null,
-      volume: p.volume,
-      region: p.region,
-      rating: p.rating,
-      tag: p.tag === 'LIMITED' ? 'LIMITED' : null
-    }))
-})
 </script>
 
 <style scoped>
@@ -559,4 +533,16 @@ const products = computed(() => {
   .cat-grid { grid-template-columns: 1fr; gap: 16px; }
   .cat-card { height: 240px; }
 }
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+.skeleton-card {
+  aspect-ratio: 3/4;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>

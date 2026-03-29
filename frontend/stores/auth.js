@@ -58,5 +58,20 @@ export function useAuth() {
     isLoggedIn.value = false
   }
 
-  return { user, isLoggedIn, login, register, logout }
+  // ✅ ต้องเพิ่ม restoreSession เข้ามาในนี้ด้วย
+  async function restoreSession() {
+    try {
+      const me = await api.getMe()
+      if (me.login) {
+        user.value = { email: me.email, name: me.name, status: me.status }
+        isLoggedIn.value = true
+        await useCart().loadUserCart()
+      }
+    } catch (err) {
+      user.value = null
+      isLoggedIn.value = false
+    }
+  }
+
+  return { user, isLoggedIn, login, register, logout, restoreSession }
 }

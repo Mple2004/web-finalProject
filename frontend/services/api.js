@@ -8,7 +8,6 @@ const http = axios.create({
 export default {
   // ─── MEMBER ───────────────────────────────────────
   async login(email, password) {
-    // แก้: backend รับ loginName (req.body.loginName) ต้องส่ง loginName
     const res = await http.post('/members/login', { loginName: email, password })
     return res.data
   },
@@ -19,7 +18,6 @@ export default {
   },
 
   async getMe() {
-    // แก้: เปลี่ยนจาก /members/detail ซึ่ง route ตอนนี้มีแล้ว
     const res = await http.get('/members/detail')
     return res.data
   },
@@ -46,6 +44,16 @@ export default {
 
   async getProductsBySubCategory(subcategory) {
     const res = await http.get(`/products/subcategory/${subcategory}`)
+    return res.data
+  },
+
+  async searchProducts(query) {
+    const res = await http.get(`/products/search/${encodeURIComponent(query)}`)
+    return res.data
+  },
+
+  async getThreeProducts() {
+    const res = await http.get('/products/three')
     return res.data
   },
 
