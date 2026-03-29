@@ -53,22 +53,6 @@ export async function checkout(req, res) {
   }
 }
 
-// 2. ฟังก์ชันดูประวัติการสั่งซื้อที่จ่ายเงินไปแล้วทั้งหมด (Order History)
-export async function getOrderHistory(req, res) {
-  console.log(`POST /transaction/history is requested`);
-  const email = req.body.email;
-
-  try {
-    const result = await database.query({
-      text: `SELECT * FROM carts WHERE email = $1 AND status = 'paid' ORDER BY updated_at DESC`,
-      values: [email]
-    });
-    return res.json({ success: true, history: result.rows });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-}
-
 // ฟังก์ชันดูรายละเอียดสินค้าข้างในตะกร้าที่จ่ายเงินแล้ว
 export async function getOrderDetail(req, res) {
   const { cart_id } = req.params; // รับค่า cart_id จาก URL
@@ -88,5 +72,69 @@ export async function getOrderDetail(req, res) {
     res.json({ success: true, items: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ในไฟล์ transactionController.js
+export async function getOrderHistory(req, res) {
+  // ดึง email จาก Token (เหมือนระบบ Wishlist ที่เราเพิ่งแก้ไป)
+  const email = req.user.email; 
+
+  try {
+    const result = await database.query({
+      text: `
+        SELECT 
+          ct.cart_id AS "orderId",
+          ct.updated_at AS "date",
+          ct.status,
+          -- รวมชื่อสินค้าในตะกร้ามาเป็นข้อความเดียว (Comma-separated)
+          STRING_AGG(p."pdName" || ' x' || ctd.qty, ', ') AS "items",
+          -- คำนวณราคารวมของทั้งตะกร้า
+          SUM(ctd.price * ctd.qty) AS "total"
+        FROM carts ct
+        JOIN "cartDtl" ctd ON ct.cart_id = ctd.cart_id
+        JOIN products p ON ctd."pdId" = p."pdID"
+        WHERE ct.email = $1 AND ct.status = 'paid'
+        GROUP BY ct.cart_id
+        ORDER BY ct.updated_at DESC
+      `,
+      values: [email]
+    });
+    
+    return res.json({ success: true, history: result.rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ในไฟล์ transactionController.js
+
+export async function getAdminSalesSummary(req, res) {
+  console.log(`GET /admin/sales-summary is requested`);
+  
+  // ตรวจสอบก่อนว่าเป็น Admin หรือไม่ (เช็คจาก Token)
+  if (req.user.status !== 'admin') {
+    return res.status(403).json({ message: "Forbidden: Admin only" });
+  }
+
+  try {
+    const result = await database.query({
+      text: `
+        SELECT 
+          COUNT(ct.cart_id) AS "totalOrders",
+          SUM(ctd.price * ctd.qty) AS "totalRevenue",
+          COUNT(DISTINCT ct.email) AS "totalCustomers"
+        FROM carts ct
+        JOIN "cartDtl" ctd ON ct.cart_id = ctd.cart_id
+        WHERE ct.status = 'paid'
+      `
+    });
+    
+    return res.json({ 
+      success: true, 
+      summary: result.rows[0] 
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
