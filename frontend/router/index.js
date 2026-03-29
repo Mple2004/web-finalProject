@@ -37,17 +37,16 @@ let sessionRestored = false
 router.beforeEach(async (to, from) => {
   const auth = useAuth()
 
-  // ✅ รอ restoreSession ครั้งแรกให้เสร็จก่อน
   if (!sessionRestored) {
     await auth.restoreSession()
     sessionRestored = true
   }
 
-  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+  if (to.meta.requiresAuth && !auth.isLoggedIn.value) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  if (to.meta.guestOnly && auth.isLoggedIn) {
+  if (to.meta.guestOnly && auth.isLoggedIn.value) {
     return { name: 'home' }
   }
 })

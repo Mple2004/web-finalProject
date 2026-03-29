@@ -1,12 +1,11 @@
 import database from "../services/database.js";
 
-// 1. ฟังก์ชันสำหรับยืนยันการชำระเงิน (Checkout)
 export async function checkout(req, res) {
   console.log(`POST /transaction/checkout is requested`);
-  const { cart_id, email } = req.body;
+  const { cart_id } = req.body;
+  const email = req.user.email;
 
   try {
-    // 1. เช็คก่อนว่าตะกร้านี้มีอยู่จริงและยังไม่จ่ายเงิน (เหมือนเดิม)
     const cartCheck = await database.query({
       text: `SELECT * FROM carts WHERE cart_id = $1 AND email = $2 AND status = 'active'`,
       values: [cart_id, email]
@@ -16,36 +15,24 @@ export async function checkout(req, res) {
       return res.status(404).json({ success: false, message: "ไม่พบตะกร้าที่รอชำระเงิน" });
     }
 
-    // --- ส่วนที่เพิ่มใหม่: ดึงรายการสินค้าในตะกร้ามาเตรียมตัดสต็อก ---
     const itemsInCart = await database.query({
       text: `SELECT "pdId", qty FROM "cartDtl" WHERE cart_id = $1`,
       values: [cart_id]
     });
 
-    // วนลูปเพื่อ UPDATE จำนวนสินค้าในตาราง products ทีละรายการ
-    // ... โค้ดส่วนอื่นๆ ใน checkout ...
-
-    // วนลูปเพื่อ UPDATE จำนวนสินค้าในสต็อก
     for (let item of itemsInCart.rows) {
       await database.query({
-        text: `UPDATE products SET stock_qty = stock_qty - $1 WHERE "pdID" = $2`, 
+        text: `UPDATE products SET stock_qty = stock_qty - $1 WHERE "pdID" = $2`,
         values: [item.qty, item.pdId]
       });
     }
 
-// ... โค้ดส่วนอื่นๆ ...
-    // -------------------------------------------------------
-
-    // 2. เปลี่ยนสถานะตะกร้าเป็น 'paid' เพื่อปิดยอด (เหมือนเดิม)
     await database.query({
       text: `UPDATE carts SET status = 'paid', updated_at = NOW() WHERE cart_id = $1`,
       values: [cart_id]
     });
 
-    return res.json({ 
-      success: true, 
-      message: "ชำระเงินและตัดสต็อกสินค้าเรียบร้อยแล้ว!" 
-    });
+    return res.json({ success: true, message: "ชำระเงินเรียบร้อยแล้ว!" });
 
   } catch (err) {
     console.error(err);
@@ -53,9 +40,8 @@ export async function checkout(req, res) {
   }
 }
 
-// ฟังก์ชันดูรายละเอียดสินค้าข้างในตะกร้าที่จ่ายเงินแล้ว
 export async function getOrderDetail(req, res) {
-  const { cart_id } = req.params; // รับค่า cart_id จาก URL
+  const { cart_id } = req.params;
   try {
     const result = await database.query({
       text: `SELECT ctd.*, pd."pdName", pd."pdPrice"
@@ -64,7 +50,7 @@ export async function getOrderDetail(req, res) {
              WHERE ctd.cart_id = $1`,
       values: [cart_id]
     });
-    
+
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: "ไม่พบรายการสินค้าในตะกร้านี้" });
     }
@@ -75,11 +61,8 @@ export async function getOrderDetail(req, res) {
   }
 }
 
-// ในไฟล์ transactionController.js
 export async function getOrderHistory(req, res) {
-  // ดึง email จาก Token (เหมือนระบบ Wishlist ที่เราเพิ่งแก้ไป)
-  const email = req.user.email; 
-
+  const email = req.user.email;
   try {
     const result = await database.query({
       text: `
@@ -87,9 +70,7 @@ export async function getOrderHistory(req, res) {
           ct.cart_id AS "orderId",
           ct.updated_at AS "date",
           ct.status,
-          -- รวมชื่อสินค้าในตะกร้ามาเป็นข้อความเดียว (Comma-separated)
           STRING_AGG(p."pdName" || ' x' || ctd.qty, ', ') AS "items",
-          -- คำนวณราคารวมของทั้งตะกร้า
           SUM(ctd.price * ctd.qty) AS "total"
         FROM carts ct
         JOIN "cartDtl" ctd ON ct.cart_id = ctd.cart_id
@@ -100,19 +81,16 @@ export async function getOrderHistory(req, res) {
       `,
       values: [email]
     });
-    
+
     return res.json({ success: true, history: result.rows });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
 }
 
-// ในไฟล์ transactionController.js
-
 export async function getAdminSalesSummary(req, res) {
   console.log(`GET /admin/sales-summary is requested`);
-  
-  // ตรวจสอบก่อนว่าเป็น Admin หรือไม่ (เช็คจาก Token)
+
   if (req.user.status !== 'admin') {
     return res.status(403).json({ message: "Forbidden: Admin only" });
   }
@@ -129,11 +107,8 @@ export async function getAdminSalesSummary(req, res) {
         WHERE ct.status = 'paid'
       `
     });
-    
-    return res.json({ 
-      success: true, 
-      summary: result.rows[0] 
-    });
+
+    return res.json({ success: true, summary: result.rows[0] });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

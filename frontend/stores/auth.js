@@ -2,14 +2,14 @@ import { ref } from 'vue'
 import api from '../services/api'
 import { useCart } from './cart'
 
+const user = ref(null)
+const isLoggedIn = ref(false)
 
 // ✅ helper อ่าน avatar จาก localStorage
 function getAvatar(email) {
   return email ? localStorage.getItem(`avatar_${email}`) || '' : ''
 }
 
-const user = ref(null)
-const isLoggedIn = ref(false)
 export function useAuth() {
 
   async function restoreSession() {

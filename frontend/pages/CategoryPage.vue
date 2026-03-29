@@ -7,10 +7,6 @@
       <div class="hero-content">
         <h2 class="hero-title">Masterpiece Spirits</h2>
         <p class="hero-desc">Explore our curated selection of world-class distillations, from rare single malts to artisanal agave spirits.</p>
-        <div class="hero-actions">
-          <button class="btn-primary">Shop Best Sellers</button>
-          <button class="btn-outline">Member Exclusives</button>
-        </div>
       </div>
     </div>
 

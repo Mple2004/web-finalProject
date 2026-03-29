@@ -74,12 +74,14 @@ const error = ref('')
 async function handleSubmit() {
   error.value = ''
   loading.value = true
+  console.log('Submitting...', form.email)
   const result = await auth.login(form.email, form.password)
   loading.value = false
 
   if (result.success) {
     toast.show('Login successful 🎉')
-    router.push(auth.user.value.role === 'admin' ? '/admin' : '/')
+    // ✅ เปลี่ยน .role → .status และ path ให้ตรงกับ router
+    router.push(auth.user?.value?.status === 'admin' ? '/admin/dashboard' : '/')
   } else {
     error.value = result.message
   }
