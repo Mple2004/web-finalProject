@@ -183,6 +183,7 @@ function mapProduct(p) {
     abv: '',
     description: `${p.pdBrand} · ${p.pdSubCategory}`,
     image: p.pdImage || `https://placehold.co/400x400?text=${encodeURIComponent(p.pdName)}`,
+    stock: Number(p.stock_qty ?? 0),
     tag: null,
     reviews: 0,
     rating: 0,

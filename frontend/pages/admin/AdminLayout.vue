@@ -66,7 +66,12 @@
           <span class="material-symbols-outlined">menu</span>
         </button>
         <div class="header-user">
-          <img :src="`http://localhost:5000/img_mem/${encodeURIComponent(auth.user.value?.email)}.jpg`" class="avatar">
+          <img
+                    :src="`http://localhost:5000/img_mem/${encodeURIComponent(auth.user.value?.email)}.jpg?t=${imageTimestamp}`"
+                    :alt="auth.user.value?.name"
+                    class="avatar"
+                    @error="e => e.target.style.visibility = 'hidden'"
+                  > 
           <div class="user-info">
             <p class="user-name">{{ auth.user.value?.name }}</p>
             <p class="user-role">{{ auth.user.value?.status }}</p>

@@ -66,8 +66,10 @@ export function useCart() {
           })
         }
       }
+      return res
     } catch (err) {
       console.error('add to cart error:', err.message)
+      return { cartDtlOK: false, messageAddCartDtl: err.message }
     }
   }
 

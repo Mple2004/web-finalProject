@@ -130,6 +130,7 @@ function mapProduct(p) {
     name:        p.pdName,
     price:       Number(p.pdPrice),
     image:       p.pdImage || `https://placehold.co/400x400?text=${encodeURIComponent(p.pdName)}`,
+    stock:       Number(p.stock_qty ?? 0),
     volume:      p.pdSize ? `${p.pdSize}ml` : '',
     region:      p.pdCountry ?? '',
     rating:      Number(p.pdRating)  || 0,

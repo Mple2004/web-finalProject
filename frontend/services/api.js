@@ -179,6 +179,7 @@ export default {
     for (const [k, v] of Object.entries(data)) {
       if (v !== null && v !== undefined && v !== '') form.append(k, v)
     }
+    // ใช้คำว่า image1, image2, image3 ให้ตรงกับที่ backend รอรับ
     if (imageFiles[0]) form.append('image1', imageFiles[0])
     if (imageFiles[1]) form.append('image2', imageFiles[1])
     if (imageFiles[2]) form.append('image3', imageFiles[2])

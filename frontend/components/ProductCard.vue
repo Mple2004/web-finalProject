@@ -9,7 +9,10 @@
           favorite
         </span>
       </button>
-      <img :src="product.image" :alt="product.name" class="product-img" />
+      <img :src="product.image" :alt="product.name" class="product-img" :class="{ blurred: product.stock <= 0 }" />
+      <div v-if="product.stock <= 0" class="out-of-stock-overlay">
+        <span>Out of Stock</span>
+      </div>
     </div>
     <div class="card-body">
       <p class="region">{{ product.region }}</p>
@@ -21,8 +24,8 @@
           <p v-if="product.oldPrice" class="old-price">฿{{ product.oldPrice.toFixed(2) }}</p>
           <p class="meta">{{ product.volume }} | {{ product.abv }}</p>
         </div>
-        <button class="cart-btn" :class="{ added: justAdded }" @click="handleAddToCart">
-          <span class="material-symbols-outlined">{{ justAdded ? 'check' : 'add_shopping_cart' }}</span>
+        <button class="cart-btn" :class="{ added: justAdded, outofstock: product.stock <= 0 }" @click="handleAddToCart">
+          <span class="material-symbols-outlined">{{ justAdded ? 'check' : product.stock <= 0 ? 'block' : 'add_shopping_cart' }}</span>
         </button>
       </div>
     </div>
@@ -34,6 +37,7 @@ import { ref, onMounted } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useLoginModal } from '../stores/loginModal'
 import { useToast } from '../stores/toast'
+import { useCart } from '../stores/cart'
 import api from '../services/api'
 
 const props = defineProps({
@@ -45,12 +49,23 @@ const emit = defineEmits(['add-to-cart'])
 const auth = useAuth()
 const loginModal = useLoginModal()
 const toast = useToast()
+const cart = useCart()
 
 const isWishlisted = ref(false)
 const justAdded = ref(false)
 
-function handleAddToCart() {
+async function handleAddToCart() {
   if (justAdded.value) return
+  if (props.product.stock <= 0) {
+    toast.show('สินค้าหมดแล้ว')
+    return
+  }
+  if (!auth.isLoggedIn.value) { loginModal.show(); return }
+  const res = await cart.add(props.product)
+  if (res?.cartDtlOK === false) {
+    toast.show(`✗ ${res.messageAddCartDtl || 'สินค้าหมดแล้ว'}`)
+    return
+  }
   emit('add-to-cart', props.product)
   justAdded.value = true
   setTimeout(() => { justAdded.value = false }, 1200)
@@ -121,7 +136,8 @@ async function handleWishlist() {
 }
 .name {
   font-size: 18px; font-weight: 700; margin-bottom: 4px;
-  transition: color 0.2s; cursor: pointer;
+  transition: color 0.2s; cursor: pointer; 
+  color: var(--text-light);
 }
 .card:hover .name { color: var(--primary); }
 .desc { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; flex: 1; }
@@ -142,6 +158,23 @@ async function handleWishlist() {
 .cart-btn .material-symbols-outlined { font-size: 20px; transition: transform 0.2s; }
 .cart-btn.added { background: #4caf50; animation: popIn 0.3s ease; }
 .cart-btn.added .material-symbols-outlined { transform: scale(1.2); }
+.cart-btn.outofstock { background: var(--text-dim); cursor: not-allowed; box-shadow: none; }
+.cart-btn.outofstock:hover { transform: none; }
+.product-img.blurred { filter: blur(3px); }
+.out-of-stock-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.out-of-stock-overlay span {
+  padding: 6px 16px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+}
 
 @keyframes popIn {
   0%   { transform: scale(1); }

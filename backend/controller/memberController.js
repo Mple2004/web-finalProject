@@ -9,7 +9,9 @@ const storage = multer.diskStorage({
     cb(null, "img_mem");
   },
   filename: function (req, file, cb) {
-    const filename = `${req.body.email}.jpg`;
+    // 👉 แก้ให้เช็คทั้ง params (จาก URL) และ body (จากฟอร์ม)
+    const email = req.params.email || req.body.email;
+    const filename = `${email}.jpg`;
     cb(null, filename);
   },
 });

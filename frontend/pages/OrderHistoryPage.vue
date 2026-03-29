@@ -244,21 +244,21 @@ function closeModal() {
 }
 
 async function reorderItems() {
-  if (!selectedOrderData.value?.items) return
-  for (const item of selectedOrderData.value.items) {
-    try {
-      // ✅ fetch product จาก API จริง
-      const product = await api.getProductById(item.pdId || item.pdID)
-      if (product) {
-        for (let i = 0; i < item.qty; i++) {
-          cart.add(product)
-        }
-      }
-    } catch { /* skip */ }
+  if (!selectedOrderData.value?.items?.length) return
+  try {
+    for (const item of selectedOrderData.value.items) {
+      const pdId    = item.pdId || item.pdID
+      const pdPrice = Number(item.pdPrice || item.price || 0)
+      if (!pdId || !pdPrice) continue
+      await api.addToCart(pdId, pdPrice, item.qty)
+    }
+    await cart.loadUserCart()
+    toast.show('✓ Items added to cart')
+    closeModal()
+    router.push('/checkout')
+  } catch (err) {
+    toast.show(`✗ Failed to reorder: ${err.message}`)
   }
-  toast.show('✓ Items added to cart')
-  closeModal()
-  router.push('/checkout')
 }
 </script>
 

@@ -16,7 +16,7 @@
       <!-- Gallery -->
       <div class="gallery">
         <div class="main-image">
-          <img :src="mainImage" :alt="product.name" />
+          <img :src="mainImage" :alt="product.name" :class="{ blurred: product.stock <= 0 }" />
         </div>
         <div class="thumbs">
           <div v-for="(img, i) in thumbImages" :key="i"
@@ -60,14 +60,16 @@
               </button>
             </div>
           </div>
-          <button class="add-btn" @click="addProduct">
-            <span class="material-symbols-outlined">shopping_cart</span>
-            Add to Cart
+          <button class="add-btn" :class="{ 'out-of-stock': product.stock <= 0 }" @click="addProduct" :disabled="product.stock <= 0">
+            <span class="material-symbols-outlined">{{ product.stock <= 0 ? 'block' : 'shopping_cart' }}</span>
+            {{ product.stock <= 0 ? 'Out of Stock' : 'Add to Cart' }}
           </button>
           <div class="status-row">
             <div class="status-item">
-              <span class="material-symbols-outlined" style="color:var(--green);font-size:18px">check_circle</span>
-              In Stock
+              <span class="material-symbols-outlined" :style="{ color: product.stock > 0 ? 'var(--green)' : '#f44336', fontSize: '18px' }">
+                {{ product.stock > 0 ? 'check_circle' : 'cancel' }}
+              </span>
+              {{ product.stock > 0 ? 'In Stock' : 'Out of Stock' }}
             </div>
             <div class="status-item">
               <span class="material-symbols-outlined" style="color:var(--primary);font-size:18px">local_shipping</span>
@@ -173,6 +175,7 @@ function mapProduct(p) {
     volume: p.pdSize ? `${p.pdSize}ml` : '',
     abv: '',
     description: `${p.pdBrand} — ${p.pdSubCategory} จาก ${p.pdCountry}`,
+    stock: Number(p.stock_qty ?? 0),
     image: p.pdImage || `https://placehold.co/600x600?text=${encodeURIComponent(p.pdName)}`,
     images: [p.pdImage, p.pdImage2, p.pdImage3]
       .filter(Boolean)
@@ -211,10 +214,13 @@ watch(product, p => {
   if (p) { mainImage.value = p.images?.[0] || p.image; qty.value = 1; showSpecs.value = false; showShip.value = false }
 }, { immediate: true })
 
-function addProduct() {
+async function addProduct() {
   if (!product.value) return
+  if (product.value.stock <= 0) { toast.show('สินค้าหมดแล้ว'); return }
   if (!auth.isLoggedIn.value) { loginModal.show(); return }
-  for (let i = 0; i < qty.value; i++) cart.add(product.value)
+  const res = await api.addToCart(product.value.id, product.value.price, qty.value)
+  if (res?.cartDtlOK === false) { toast.show(`✗ ${res.messageAddCartDtl || 'สินค้าหมดแล้ว'}`); return }
+  await cart.loadUserCart()
   toast.show(`✓ Added ${qty.value}x "${product.value.name}"`)
 }
 
@@ -266,6 +272,17 @@ onMounted(() => {})
   border: 1px solid var(--border); background: var(--primary-05);
 }
 .main-image img { width: 100%; height: 100%; object-fit: cover; }
+.main-image img.blurred { filter: blur(4px); }
+.out-of-stock-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+}
+.out-of-stock-overlay span {
+  padding: 10px 28px; background: rgba(0,0,0,0.75); color: white;
+  font-size: 16px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+}
 .thumbs { display: flex; gap: 12px; }
 .thumb {
   width: 80px; height: 80px; border-radius: var(--radius);
@@ -318,6 +335,8 @@ onMounted(() => {})
   box-shadow: var(--shadow-primary); transition: background 0.2s;
 }
 .add-btn:hover { background: var(--primary-hover); }
+.add-btn.out-of-stock { background: var(--text-dim); cursor: not-allowed; box-shadow: none; }
+.add-btn.out-of-stock:hover { background: var(--text-dim); }
 .status-row { display: flex; gap: 20px; margin-top: 12px; }
 .status-item { display: flex; align-items: center; gap: 4px; font-size: 14px; color: var(--text-muted); }
 

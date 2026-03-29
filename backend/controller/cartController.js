@@ -50,10 +50,11 @@ export async function postCart(req, res) {
 export async function postCartDtl(req, res) {
   console.log(`POST /CARTDETAIL is requested `);
   try {
-    const cart_id = req.body.cart_id || req.body.cartId; 
+    const cart_id = req.body.cart_id || req.body.cartId;
     const pdId = req.body.pdId;
     const pdPrice = req.body.pdPrice;
-    
+    const qty = Number(req.body.qty) || 1;
+
     if (cart_id == null || pdId == null || pdPrice == null) {
       return res.json({
         cartDtlOK: false,
@@ -90,20 +91,26 @@ export async function postCartDtl(req, res) {
 
     // 3. จัดการเพิ่มข้อมูล (ถ้ามีสต็อกพอ)
     if (pdResult.rowCount == 0) {
-      // กรณียังไม่มีในตะกร้า (เริ่มที่ 1 ชิ้น ซึ่งเราเช็คแล้วว่าสต็อก > 0 แน่นอน)
+      // กรณียังไม่มีในตะกร้า
+      if (qty > currentStock) {
+        return res.json({
+          cartDtlOK: false,
+          messageAddCartDtl: `ไม่สามารถเพิ่มได้ สินค้า ${productName} มีเหลือเพียง ${currentStock} ชิ้น`
+        });
+      }
       try {
         await database.query({
           text: `INSERT INTO "cartDtl" (cart_id, "pdId", "qty", "price")
                  VALUES ($1,$2,$3,$4)`,
-          values: [cart_id, pdId, 1, pdPrice],
+          values: [cart_id, pdId, qty, pdPrice],
         });
         return res.json({ cartDtlOK: true, messageAddCart: cart_id });
       } catch (err) {
         return res.json({ cartDtlOK: false, messageAddCartDtl: "INSERT DETAIL ERROR" });
       }
     } else {
-      // กรณีมีในตะกร้าอยู่แล้ว จะบวกเพิ่ม 1 ชิ้น ต้องเช็คก่อนว่าเกินสต็อกไหม
-      const newQty = pdResult.rows[0].qty + 1;
+      // กรณีมีในตะกร้าอยู่แล้ว จะบวกเพิ่มตาม qty ที่ส่งมา
+      const newQty = pdResult.rows[0].qty + qty;
       
       if (newQty > currentStock) {
         return res.json({ 

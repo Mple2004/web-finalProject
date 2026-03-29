@@ -87,11 +87,12 @@ export const postProduct = async (req, res) => {
         "pdID", "pdName", "pdCategory", "pdSubCategory",
         "pdBrand", "pdCountry", "pdSize", "pdPrice", "stock_qty",
         "pdImage", "pdImage2", "pdImage3"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
+      )OVERRIDING SYSTEM VALUE
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
     `;
     const values = [
-      bodydata.pdID, bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory,
-      bodydata.pdBrand, bodydata.pdCountry, bodydata.pdSize, bodydata.pdPrice,
+      bodydata.pdID, bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory ?? null,
+      bodydata.pdBrand ?? null, bodydata.pdCountry ?? null, bodydata.pdSize ?? null, bodydata.pdPrice,
       bodydata.stock_qty ?? 0, pdImage, pdImage2, pdImage3,
     ];
     
@@ -128,8 +129,8 @@ export const putProduct = async (req, res) => {
       RETURNING *
       `,
       values: [
-        bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory,
-        bodydata.pdBrand, bodydata.pdCountry, bodydata.pdSize,
+        bodydata.pdName, bodydata.pdCategory, bodydata.pdSubCategory ?? null,
+        bodydata.pdBrand ?? null, bodydata.pdCountry ?? null, bodydata.pdSize ?? null,
         bodydata.pdPrice, bodydata.stock_qty ?? 0,
         img1, img2, img3, req.params.id,
       ],

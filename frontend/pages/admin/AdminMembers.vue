@@ -38,7 +38,7 @@
               <td class="avatar-cell">
                 <div class="avatar" :style="{ backgroundColor: getColor(member.email) }">
                   <img
-                    :src="`http://localhost:5000/img_mem/${encodeURIComponent(member.email)}.jpg`"
+                    :src="`http://localhost:5000/img_mem/${encodeURIComponent(member.email)}.jpg?t=${imageTimestamp}`"
                     :alt="member.name"
                     class="avatar-img"
                     @error="e => e.target.style.visibility = 'hidden'"
@@ -141,7 +141,7 @@
           <div class="modal-header-info">
             <div class="avatar avatar-lg" :style="{ backgroundColor: getColor(editingMember.email) }">
               <img
-                :src="`http://localhost:5000/img_mem/${encodeURIComponent(editingMember.email)}.jpg`"
+                :src="editForm.preview || `http://localhost:5000/img_mem/${encodeURIComponent(editingMember.email)}.jpg?t=${imageTimestamp}`"
                 :alt="editingMember.name"
                 class="avatar-img"
                 @error="e => e.target.style.visibility = 'hidden'"
@@ -175,16 +175,18 @@
             <label>Profile Photo</label>
             <div class="file-input-wrapper">
               <input 
-                ref="fileInput"
+                id="editFileInput"
                 type="file" 
                 accept="image/*" 
                 @change="onFileSelected"
                 class="file-input"
               >
-              <button type="button" class="file-btn" @click="$refs.fileInput.click()">
+              
+              <label for="editFileInput" class="file-btn">
                 <span class="material-symbols-outlined">image</span>
                 {{ editForm.photoFile ? 'Change Photo' : 'Choose Photo' }}
-              </button>
+              </label>
+              
               <span v-if="editForm.photoFile" class="file-name">{{ editForm.photoFile.name }}</span>
             </div>
           </div>
@@ -266,7 +268,7 @@ const saving = ref(false)
 const searchQuery = ref('')
 const filterStatus = ref('')
 const editingMember = ref(null)
-const editForm = ref({ email: '', name: '', status: '', password: '', photoFile: null })
+const editForm = ref({ email: '', name: '', status: '', password: '', photoFile: null,preview: null })
 const addingMember = ref(false)
 const addForm = ref({ name: '', email: '', password: '', status: 'member', photoFile: null })
 const addFileInput = ref(null)
@@ -274,7 +276,7 @@ const viewingMember = ref(null)
 const memberOrders = ref([])
 const loadingOrders = ref(false)
 const fileInput = ref(null)
-
+const imageTimestamp = ref(Date.now())
 const currentUserEmail = computed(() => auth.user.value?.email)
 
 const filteredMembers = computed(() =>
@@ -331,13 +333,20 @@ async function saveNewMember() {
       toast.show(`✗ ${res.message}`)
       return
     }
+
     if (addForm.value.status === 'admin' || addForm.value.photoFile) {
       const formData = new FormData()
+      
+      // 👉 เพิ่มบรรทัดนี้: ส่ง email เข้าไปในฟอร์มด้วยเพื่อให้ Backend รู้ว่าคือของใคร
+      formData.append('email', addForm.value.email) 
+      
       if (addForm.value.status === 'admin') formData.append('status', 'admin')
       if (addForm.value.photoFile) formData.append('file', addForm.value.photoFile)
       await api.updateMemberWithFile(addForm.value.email, formData)
     }
-    members.value.push({ name: addForm.value.name, email: addForm.value.email, status: addForm.value.status })
+    
+    // รีเฟรชข้อมูลให้ตารางอัปเดตทันที
+    members.value = await api.getAllMembers()
     toast.show('✓ Member created successfully')
     closeAdd()
   } catch (err) {
@@ -361,6 +370,7 @@ function onFileSelected(event) {
   const file = event.target.files?.[0]
   if (file) {
     editForm.value.photoFile = file
+    editForm.value.preview = URL.createObjectURL(file)
   }
 }
 
@@ -370,28 +380,39 @@ async function saveMember() {
     const formData = new FormData()
     formData.append('email', editForm.value.email)
     formData.append('name', editForm.value.name)
+
     if (editForm.value.password) {
       formData.append('password', editForm.value.password)
     }
+
     if (editForm.value.photoFile) {
       formData.append('file', editForm.value.photoFile)
     }
+
     if (editingMember.value.status !== 'admin') {
       formData.append('status', editForm.value.status)
     }
 
     const res = await api.updateMemberWithFile(editingMember.value.email, formData)
+
     if (res.updated && res.member) {
       const oldEmail = editingMember.value.email
       const idx = members.value.findIndex(m => m.email === oldEmail)
+
       if (idx !== -1) {
         members.value[idx] = { ...members.value[idx], ...res.member }
       }
+
+      imageTimestamp.value = Date.now()
       toast.show('✓ Member updated successfully')
       closeEdit()
+
+      // 👉 ใส่ตรงนี้
+      window.location.reload()
     } else {
       toast.show(`✗ ${res.message}`)
     }
+
   } catch (err) {
     toast.show(`✗ Error: ${err.response?.data?.message || err.message}`)
   } finally {
@@ -443,7 +464,7 @@ function openOrderDetail(order) {
 .members-management { display:flex; flex-direction:column; gap:24px; }
 .page-header { display:flex; align-items:flex-start; justify-content:space-between; }
 .page-header h1 { margin:0 0 4px; font-size:24px; font-weight:900; color:var(--text-white); }
-.text-muted { margin:0; font-size:14px; color:var(--text-muted); }
+.text-muted { margin:0; font-size:14px; color: #b0b0b0; }
 .btn-add { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:var(--radius); font-weight:700; font-size:14px; cursor:pointer; transition:background .2s; }
 .btn-add:hover { background:var(--primary-hover); }
 .btn-add .material-symbols-outlined { font-size:20px; }

@@ -5,7 +5,7 @@
         <h1>Product Management</h1>
         <p class="text-muted">Add, edit, or remove products from your catalog</p>
       </div>
-      <button class="btn-add" @click="showForm = !showForm">
+      <button class="btn-add" @click="openAddProduct">
         <span class="material-symbols-outlined">add</span>
         Add Product
       </button>
@@ -244,16 +244,17 @@ function removeSlot(i) {
   imageSlots.value[i].preview = null
   imageSlots.value[i].existingUrl = null
 }
-
+function openAddProduct() {
+  editingProduct.value = null
+  formData.value = { pdID: '', pdName: '', pdCategory: '', pdSubCategory: '', pdBrand: '', pdCountry: '', pdSize: '', pdPrice: '', stock_qty: 0 }
+  imageSlots.value = [{ file: null, preview: null, existingUrl: null }, { file: null, preview: null, existingUrl: null }, { file: null, preview: null, existingUrl: null }]
+  showForm.value = true
+}
 function resetForm() {
   showForm.value = false
   editingProduct.value = null
   formData.value = { pdID: '', pdName: '', pdCategory: '', pdSubCategory: '', pdBrand: '', pdCountry: '', pdSize: '', pdPrice: '', stock_qty: 0 }
-  imageSlots.value = [
-    { file: null, preview: null, existingUrl: null },
-    { file: null, preview: null, existingUrl: null },
-    { file: null, preview: null, existingUrl: null },
-  ]
+  imageSlots.value = [{ file: null, preview: null, existingUrl: null }, { file: null, preview: null, existingUrl: null }, { file: null, preview: null, existingUrl: null }]
 }
 
 function editProduct(product) {
@@ -271,30 +272,20 @@ function editProduct(product) {
 async function saveProduct() {
   saving.value = true
   try {
-    const imageFiles = imageSlots.value.map(s => s.file)        // [File|null, File|null, File|null]
-    const keepImages = imageSlots.value.map(s => s.existingUrl ?? '') // ['url'|'', ...]
+    const imageFiles = imageSlots.value.map(s => s.file)
+    const keepImages = imageSlots.value.map(s => s.existingUrl ?? '')
 
     if (editingProduct.value) {
       const res = await api.updateProduct(editingProduct.value.pdID, formData.value, imageFiles, keepImages)
-      if (res.message === 'ok' || res.pdID) {
-        const idx = products.value.findIndex(p => p.pdID === editingProduct.value.pdID)
-        if (idx !== -1) products.value[idx] = { ...products.value[idx], ...res }
-        toast.show('✓ Product updated successfully')
-      } else {
-        toast.show(`✗ ${res.message}`); return
-      }
+      toast.show('✓ Product updated successfully')
     } else {
       const res = await api.createProduct(formData.value, imageFiles)
-      if (res.message === 'ok' || res.pdID) {
-        products.value.push(res)
-        toast.show('✓ Product added successfully')
-      } else {
-        toast.show(`✗ ${res.message}`); return
-      }
+      toast.show('✓ Product added successfully')
     }
     resetForm()
+    await loadProducts()
   } catch (err) {
-    toast.show(`✗ Error: ${err.message}`)
+    toast.show(`✗ ${err.response?.data?.message || err.message}`)
   } finally {
     saving.value = false
   }
@@ -304,10 +295,10 @@ async function deleteProduct(pdID) {
   if (!confirm('Are you sure you want to delete this product?')) return
   try {
     await api.deleteProduct(pdID)
-    products.value = products.value.filter(p => p.pdID !== pdID)
     toast.show('✓ Product deleted successfully')
+    await loadProducts()
   } catch (err) {
-    toast.show(`✗ Error: ${err.message}`)
+    toast.show(`✗ ${err.response?.data?.message || err.message}`)
   }
 }
 </script>
@@ -316,7 +307,7 @@ async function deleteProduct(pdID) {
 .products-management { display:flex; flex-direction:column; gap:24px; }
 .page-header { display:flex; align-items:flex-start; justify-content:space-between; }
 .page-header h1 { margin:0 0 4px; font-size:24px; font-weight:900; color:var(--text-white); }
-.text-muted { margin:0; font-size:14px; color:var(--text-muted); }
+.text-muted { margin:0; font-size:14px;  color: floralwhite;}
 .btn-add { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; background:var(--primary); color:white; border:none; border-radius:var(--radius); font-weight:600; cursor:pointer; transition:all .2s; }
 .btn-add:hover { background:var(--primary-hover); transform:translateY(-2px); }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
