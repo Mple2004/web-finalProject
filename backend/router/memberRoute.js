@@ -6,6 +6,7 @@ import {
   logoutMember,
   uploadMember,
   updateToAdmin,
+  updateProfile,
 } from "../controller/memberController.js";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -218,5 +219,48 @@ router.post("/members/upload", authenticateToken, uploadMember);
  *                   example: true
  */
 router.put("/member/set-admin", authenticateToken, updateToAdmin);
+
+/**
+ * @swagger
+ * /members/profile:
+ *   put:
+ *     summary: แก้ไขข้อมูลโปรไฟล์สมาชิก (อ่าน Email จาก Token)
+ *     tags: [Members]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: ชื่อที่ต้องการเปลี่ยน
+ *                 example: "Jane Doe"
+ *               password:
+ *                 type: string
+ *                 description: รหัสผ่านใหม่ (ถ้าต้องการเปลี่ยน)
+ *                 example: "newpassword456"
+ *               phone:
+ *                 type: string
+ *                 description: เบอร์โทรศัพท์
+ *                 example: "0812345678"
+ *     responses:
+ *       200:
+ *         description: อัปเดตโปรไฟล์สำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 updateOK:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         description: ไม่มีสิทธิ์เข้าถึง (Token ไม่ถูกต้อง)
+ */
+router.put("/members/profile", authenticateToken, updateProfile);
 
 export default router;

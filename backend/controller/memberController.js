@@ -166,3 +166,49 @@ export const updateToAdmin = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ฟังก์ชันสำหรับแก้ไขข้อมูลโปรไฟล์ (ชื่อ และ/หรือ รหัสผ่าน)
+export const updateProfile = async (req, res) => {
+  console.log("PUT /members/profile is requested");
+  
+  // ดึง email จาก Token เพื่อความปลอดภัย (ป้องกันคนอื่นมาแก้โปรไฟล์เรา)
+  const email = req.user.email; 
+  const { name, newPassword } = req.body;
+
+  try {
+    // 1. ถ้ามีการส่งชื่อมาใหม่ ให้เปลี่ยนชื่อ
+    if (name) {
+      await database.query({
+        text: `UPDATE "user" SET name = $1 WHERE email = $2`,
+        values: [name, email],
+      });
+    }
+
+    // 2. ถ้ามีการส่งรหัสผ่านใหม่มาด้วย ให้เข้ารหัส (Hash) แล้วเปลี่ยนรหัสผ่าน
+    if (newPassword && newPassword.trim() !== "") {
+      const saltround = await bcrypt.genSalt(11);
+      const pwdHash = await bcrypt.hash(newPassword, saltround);
+      
+      await database.query({
+        text: `UPDATE "user" SET password = $1 WHERE email = $2`,
+        values: [pwdHash, email],
+      });
+    }
+
+    // ดึงข้อมูลใหม่ส่งกลับไปอัปเดตบนหน้าเว็บ
+    const result = await database.query({
+      text: `SELECT email, name, status FROM "user" WHERE email = $1`,
+      values: [email]
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      message: "อัปเดตโปรไฟล์สำเร็จ",
+      user: result.rows[0]
+    });
+
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
