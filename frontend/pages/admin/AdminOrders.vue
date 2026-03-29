@@ -41,22 +41,23 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in filteredOrders" :key="order.historyID">
-              <td class="order-id">{{ order.orderId }}</td>
-              <td>{{ getCustomerName(order.email) }}</td>
+            <tr v-for="order in filteredOrders" :key="order.orderId">
+              <td class="order-id">#{{ order.orderId }}</td>
+              <td>{{ order.customerName }}</td>
               <td>{{ formatDate(order.date) }}</td>
-              <td class="items-count">{{ order.products.length }} item(s)</td>
-              <td class="total">฿{{ order.total_price.toLocaleString() }}</td>
+              <td class="items-count">{{ order.items }} item(s)</td>
+              <td class="total">฿{{ Number(order.total).toLocaleString() }}</td>
               <td>
                 <div class="status-select-wrapper">
                   <select 
                     :value="order.status"
-                    @change="(e) => updateOrderStatus(order.historyID, e.target.value)"
+                    @change="(e) => updateOrderStatus(order.orderId, e.target.value)"
                     class="status-select"
                     :class="order.status.toLowerCase()"
                   >
-                    <option>Processing</option>
-                    <option>Delivered</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Delivered">Delivered</option>
+                    <!-- <option value="cancelled">Cancelled</option> -->
                   </select>
                 </div>
               </td>
@@ -165,18 +166,34 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { MOCK_HISTORY, mockUsers } from '../../data/mockData'
 import { useToast } from '../../stores/toast'
 import { useRoute } from 'vue-router'
+import api from '../../services/api'
 
 const toast = useToast()
 const route = useRoute()
+const loading = ref(true)
 const selectedStatus = ref('')
 const searchQuery = ref('')
 const selectedOrder = ref(null)
-const orders = ref([...MOCK_HISTORY])
+const orders = ref([])
+
+async function fetchOrders() {
+  loading.value = true
+  try {
+    const res = await api.getAllOrders()
+    if (res.success) {
+      orders.value = res.orders // สมมติว่า Backend ส่ง { success: true, orders: [...] }
+    }
+  } catch (error) {
+    toast.show('❌ Failed to load orders')
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(() => {
+  fetchOrders()
   if (route.query.order) {
     selectedOrder.value = orders.value.find(o => o.orderId === route.query.order) || null
   }
@@ -199,22 +216,29 @@ function getCustomerName(email) {
 
 // Format date
 function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString('th-TH', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
 // Update order status
-function updateOrderStatus(historyID, newStatus) {
-  const order = orders.value.find(o => o.historyID === historyID)
-  if (order) {
-    order.status = newStatus
-    toast.show(`✓ Order ${order.orderId} updated to ${newStatus}`)
-    if (selectedOrder.value?.historyID === historyID) {
-      selectedOrder.value.status = newStatus
+async function updateOrderStatus(orderId, newStatus) {
+  try {
+    const res = await api.updateOrderStatus(orderId, newStatus)
+    if (res.success) {
+      const order = orders.value.find(o => o.orderId === orderId)
+      if (order) {
+        order.status = newStatus
+        toast.show(`✓ อัปเดตออเดอร์ ${orderId} เป็น ${newStatus} แล้ว`)
+      }
     }
+  } catch (error) {
+    toast.show('❌ Server error')
   }
 }
 </script>

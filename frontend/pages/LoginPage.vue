@@ -75,13 +75,21 @@ async function handleSubmit() {
   error.value = ''
   loading.value = true
   console.log('Submitting...', form.email)
+
   const result = await auth.login(form.email, form.password)
   loading.value = false
 
   if (result.success) {
     toast.show('Login successful 🎉')
-    // ✅ เปลี่ยน .role → .status และ path ให้ตรงกับ router
-    router.push(auth.user?.value?.status === 'admin' ? '/admin/dashboard' : '/')
+    // ตรวจสอบค่า status (admin หรือ member)
+    // แนะนำให้ใช้ .toLowerCase() เพื่อป้องกันความผิดพลาดเรื่องตัวพิมพ์
+    const userStatus = auth.user.value?.status?.toLowerCase();
+    
+    if (userStatus === 'admin') {
+      router.push('/admin/dashboard')
+    } else {
+      router.push('/')
+    }
   } else {
     error.value = result.message
   }

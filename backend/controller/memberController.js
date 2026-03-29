@@ -93,7 +93,8 @@ export const loginMember = async (req, res) => {
         secure: process.env.NODE_ENV === "production", // แก้: ใช้ false ใน dev เพื่อให้ cookie ส่งผ่าน HTTP ได้
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       });
-      res.json({ message: "Login Success", login: true, token: token });
+
+      res.json({ message: "Login Success", login: true, token: token, user: theuser });
     } else {
       return res.json({ message: "Login Fail", login: false });
     }

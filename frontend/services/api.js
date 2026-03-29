@@ -121,4 +121,57 @@ export default {
     const res = await http.post('/wishlist/toggle', { pdId, email })
     return res.data  // { message, isLiked: true/false }
   },
+
+  // ─── ADMIN ─────────────────────────────────────────
+
+  async dashboard(){
+    try {
+    const res = await http.get('/admin/dashboard')
+    return res.data // จะได้ { success, summary, topProducts, stockAlerts }
+    } catch (error) {
+      console.error('Error dashboard:', error)
+      throw error
+    }
+  },
+
+  async getAllOrders() {
+    try {
+      const res = await http.get('/admin/orders')
+      return res.data // จะได้ { success, orders }
+    } catch (error) {
+      console.error('Error getAllOrders:', error)
+      throw error
+    }
+  },
+
+  async updateOrderStatus(cartId, status) {
+    try {
+      const res = await http.put('/admin/orders/status', { cart_id: cartId, status })
+      return res.data // จะได้ { success, members }
+    } catch (error) {
+      console.error('Error updateOrderStatus:', error)
+      throw error
+    }
+  },
+
+  async getAllMembers() {
+    try {
+      const res = await http.get('/admin/members')
+      return res.data
+    } catch (error) {
+      console.error('Error getAllMembers:', error)
+      throw error
+    }
+  },
+
+  async updateMemberRole(memberId, newRole) {
+    try {
+      const res = await http.put('/admin/members/role', { member_id: memberId, new_role: newRole })
+      return res.data
+    } catch (error) {
+      console.error('Error updateMemberRole:', error)
+      throw error
+    }
+  },
+  
 }

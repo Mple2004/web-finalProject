@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useLoginModal } from '../stores/loginModal'
 import HomeView from '../pages/HomeView.vue'
 import CategoryPage from '../pages/CategoryPage.vue'
 import ProductDetail from '../pages/ProductDetail.vue'
@@ -9,6 +11,8 @@ import ProfilePage from '../pages/ProfilePage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
 import OrderHistoryPage from '../pages/OrderHistoryPage.vue'
 import WishlistPage from '../pages/WishlistPage.vue'
+import AdminDashboard from '../pages/admin/AdminDashboard.vue'
+import Ordermangement from '../pages/admin/AdminOrders.vue'
 
 const routes = [
   { path: '/',              name: 'home',           component: HomeView },
@@ -20,6 +24,17 @@ const routes = [
   { path: '/checkout',      name: 'checkout',       component: CheckoutPage,  meta: { requiresAuth: true } },
   { path: '/orders',        name: 'orders',         component: OrderHistoryPage, meta: { requiresAuth: true } },
   { path: '/wishlist',      name: 'wishlist',       component: WishlistPage,  meta: { requiresAuth: true } },
+  { 
+    path: '/admin/dashboard', 
+    name: 'admin-dashboard', 
+    component: AdminDashboard
+  },
+  { 
+    path: '/admin/orders', 
+    name: 'admin-orders', 
+    component: Ordermangement,
+    meta: { requiresAuth: true } // อาจเพิ่ม meta ว่าเฉพาะ admin เท่านั้นในอนาคต
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
@@ -36,6 +51,9 @@ let sessionRestored = false
 
 router.beforeEach(async (to, from) => {
   const auth = useAuth()
+  const loginModal = useLoginModal()
+  
+  loginModal.reset() // ✅ reset ทุกครั้งที่เปลี่ยนหน้า
 
   if (!sessionRestored) {
     await auth.restoreSession()
@@ -50,5 +68,6 @@ router.beforeEach(async (to, from) => {
     return { name: 'home' }
   }
 })
+
 
 export default router
