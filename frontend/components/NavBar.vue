@@ -9,10 +9,16 @@
 
       <!-- Links -->
       <div class="d-flex gap-4">
-        <router-link to="/category/Beer" class="text-decoration-none" style="color:#a89880">Beer</router-link>
-        <router-link to="/category/Wine" class="text-decoration-none" style="color:#a89880">Wine</router-link>
-        <router-link to="/category/Whisky" class="text-decoration-none" style="color:#a89880">Whisky</router-link>
-        <router-link to="/contact" class="text-decoration-none" style="color:#a89880">Contact Us</router-link>
+        <template v-if="!isLoggedIn || user?.status !== 'admin'">
+          <router-link to="/category/Beer"  class="text-decoration-none" style="color:#a89880">Beer</router-link>
+          <router-link to="/category/Wine"  class="text-decoration-none" style="color:#a89880">Wine</router-link>
+          <router-link to="/category/Whisky" class="text-decoration-none" style="color:#a89880">Whisky</router-link>
+          <router-link to="/contact"        class="text-decoration-none" style="color:#a89880">Contact Us</router-link>
+        </template>
+        <template v-if="isLoggedIn && user?.status === 'admin'">
+          <router-link to="/admin/dashboard" class="text-decoration-none" style="color:#c9a84c">Dashboard</router-link>
+          <router-link to="/admin/orders"    class="text-decoration-none" style="color:#c9a84c">Orders</router-link>
+        </template>
       </div>
 
       <!-- Search + Icons -->
@@ -62,7 +68,7 @@
         </div>
 
         <!-- Cart -->
-        <button class="cart-btn" @click="cart.open()">
+        <button v-if="!isLoggedIn || user?.status !== 'admin'" class="cart-btn" @click="cart.open()">
           <span class="material-symbols-outlined">shopping_cart</span>
           <span v-if="cart.state.items.length" class="badge">
             {{ cart.state.items.length }}
@@ -110,26 +116,39 @@
                   <div style="color:#a89880; font-size:0.75rem;">{{ user.email }}</div>
                 </div>
               </li>
-              <li>
-                <router-link to="/profile" class="dropdown-item" style="color:#a89880;">
-                  👤 My Profile
-                </router-link>
-              </li>
-              <li v-if="user.status === 'admin'">
-                <router-link to="/admin/dashboard" class="dropdown-item" style="color:#c9a84c;">
-                  ⚙️ Admin Dashboard
-                </router-link>
-              </li>
-              <li>
-                <router-link to="/orders" class="dropdown-item" style="color:#a89880;">
-                  📦 My Orders
-                </router-link>
-              </li>
-              <li>
-                <router-link to="/wishlist" class="dropdown-item" style="color:#a89880;">
-                  ❤️ Wishlist
-                </router-link>
-              </li>
+              <!-- Member only -->
+              <template v-if="user.status !== 'admin'">
+                <li>
+                  <router-link to="/profile" class="dropdown-item" style="color:#a89880;">
+                    👤 My Profile
+                  </router-link>
+                </li>
+                <li>
+                  <router-link to="/orders" class="dropdown-item" style="color:#a89880;">
+                    📦 My Orders
+                  </router-link>
+                </li>
+                <li>
+                  <router-link to="/wishlist" class="dropdown-item" style="color:#a89880;">
+                    ❤️ Wishlist
+                  </router-link>
+                </li>
+              </template>
+
+              <!-- Admin only -->
+              <template v-if="user.status === 'admin'">
+                <li>
+                  <router-link to="/admin/dashboard" class="dropdown-item" style="color:#c9a84c;">
+                    ⚙️ Admin Dashboard
+                  </router-link>
+                </li>
+                <li>
+                  <router-link to="/admin/orders" class="dropdown-item" style="color:#c9a84c;">
+                    📦 Order Management
+                  </router-link>
+                </li>
+              </template>
+
               <li><hr class="dropdown-divider" style="border-color:#3a2e1e;"></li>
               <li>
                 <a class="dropdown-item" href="#" style="color:#c0392b;" @click="logout">

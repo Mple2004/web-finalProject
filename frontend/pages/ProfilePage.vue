@@ -186,6 +186,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../stores/toast'
 import { useOrders } from '../stores/orders'
+import api from '../services/api'
 
 const router = useRouter()
 const auth = useAuth()
@@ -228,18 +229,20 @@ const totalSpent = computed(() =>
 onMounted(async () => {
   if (!auth.isLoggedIn.value) { router.push('/login'); return }
 
-  // โหลด avatar จาก localStorage
-  avatarUrl.value = localStorage.getItem(avatarKey()) || ''
-
-  // โหลด orders จาก API จริง
   loadingOrders.value = true
   try {
+    // 1. ดึงข้อมูล User ล่าสุด (กรณีมีการแก้ไขจากเครื่องอื่น)
+    const userData = await api.getMe()
+    auth.user.value = userData // อัปเดต store ด้วยข้อมูลล่าสุดจาก DB
+
+    // 2. โหลดประวัติการสั่งซื้อ
     const res = await orders.getUserOrders()
-    // รองรับทั้ง array ตรงๆ และ { history: [...] }
-    userOrders.value = Array.isArray(res) ? res : (res?.history ?? res?.data ?? [])
+    userOrders.value = Array.isArray(res) ? res : (res?.history || [])
+    
+    // 3. โหลด Avatar จาก LocalStorage (เฉพาะรูป)
+    avatarUrl.value = localStorage.getItem(`avatar_${auth.user.value.email}`) || ''
   } catch (err) {
-    console.error('Failed to load orders:', err.message)
-    userOrders.value = []
+    console.error('Initial load failed:', err)
   } finally {
     loadingOrders.value = false
   }
@@ -270,35 +273,60 @@ function cancelEdit() {
   formError.value = ''
 }
 
-function saveProfile() {
+async function saveProfile() {
   formError.value = ''
   const name = form.value.name.trim()
-  const email = form.value.email.trim()
-
+  
+  // Validation เบื้องต้นที่หน้าบ้าน
   if (!name) { formError.value = 'Name cannot be empty.'; return }
-  if (!email) { formError.value = 'Email cannot be empty.'; return }
-
+  
+  // ถ้าจะเปลี่ยนรหัสผ่าน ต้องกรอกทั้งเก่าและใหม่
   if (form.value.newPassword) {
-    if (!form.value.currentPassword) { formError.value = 'Please enter your current password.'; return }
-    if (form.value.newPassword.length < 6) { formError.value = 'New password must be at least 6 characters.'; return }
-    // ถ้า backend มี API เปลี่ยน password ให้เรียกตรงนี้
+    if (!form.value.currentPassword) { 
+      formError.value = 'Please enter your current password to set a new one.'; 
+      return 
+    }
+    if (form.value.newPassword.length < 6) { 
+      formError.value = 'New password must be at least 6 characters.'; 
+      return 
+    }
   }
 
-  // อัปเดต user ใน store
-  user.value = { ...user.value, name, email }
+  try {
+    // เรียกใช้ API Service ที่เราสร้างไว้
+    const response = await api.updateProfile(
+      name, 
+      form.value.newPassword, 
+      form.value.currentPassword // ส่งรหัสเก่าไปเช็คที่ Backend
+    )
 
-  // ✅ บันทึก avatar ผ่าน auth store — Navbar จะอัปเดตทันที
-  if (previewUrl.value) {
-    auth.updateAvatar(previewUrl.value)
-    avatarUrl.value = previewUrl.value
-  } else if (avatarUrl.value === '') {
-    auth.removeAvatar()
+    if (response.success) {
+      // ✅ อัปเดตข้อมูลใน Auth Store ทันที (ไม่ต้องใช้ LocalStorage แล้ว)
+      auth.user.value = { 
+        ...auth.user.value, 
+        name: response.user.name 
+      }
+
+      // จัดการเรื่อง Avatar (ถ้าคุณยังไม่ได้ทำระบบอัปโหลดรูปขึ้น Server)
+      // แนะนำให้เก็บไว้ใน localStorage ต่อไปก่อนจนกว่าจะมี API อัปโหลดรูปครับ
+      if (previewUrl.value) {
+        auth.updateAvatar(previewUrl.value)
+        avatarUrl.value = previewUrl.value
+      }
+
+      editing.value = false
+      // Reset password fields
+      form.value.currentPassword = ''
+      form.value.newPassword = ''
+      showPw.value = { current: false, new: false }
+      
+      toast.show('✓ Profile updated successfully')
+    }
+  } catch (error) {
+    console.error('Update error:', error)
+    // แสดง Error message ที่มาจาก Backend (เช่น "รหัสผ่านปัจจุบันไม่ถูกต้อง")
+    formError.value = error.response?.data?.message || 'Failed to update profile'
   }
-
-  editing.value = false
-  showPw.value  = { current: false, new: false }
-  previewUrl.value = ''
-  toast.show('✓ Profile updated')
 }
 
 function handleLogout() {

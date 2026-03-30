@@ -206,20 +206,18 @@
         </div>
 
         <div v-else class="orders-list">
-          <div v-for="order in memberOrders" :key="order.historyID" class="order-card" @click="goToOrder(order.orderId)">
+          <div v-for="order in memberOrders" :key="order.orderId" class="order-card">
             <div class="order-card-header">
-              <span class="order-id">{{ order.orderId }}</span>
-              <span class="order-status" :class="order.status.toLowerCase()">{{ order.status }}</span>
+              <span class="order-id">#{{ order.orderId }}</span>
+              <span class="order-status" :class="order.status?.toLowerCase()">{{ order.status }}</span>
             </div>
             <div class="order-card-meta">
               <span>{{ formatDate(order.date) }}</span>
-              <span class="order-total">฿{{ order.total_price.toLocaleString() }}</span>
+              <!-- ✅ ใช้ order.total แทน order.total_price -->
+              <span class="order-total">฿{{ Number(order.total).toLocaleString() }}</span>
             </div>
-            <div class="order-products">
-              <div v-for="(p, i) in order.products" :key="i" class="order-product-row">
-                <span>{{ p.pdName }}</span>
-                <span class="qty-price">× {{ p.qty }} · ฿{{ (p.qty * p.price).toLocaleString() }}</span>
-              </div>
+            <div class="order-card-meta">
+              <span style="color:var(--text-muted); font-size:12px">{{ order.items }} item(s)</span>
             </div>
           </div>
         </div>
@@ -229,173 +227,133 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { mockUsers, MOCK_HISTORY } from '../../data/mockData'
+import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../../stores/auth'
 import { useToast } from '../../stores/toast'
-import { useRouter } from 'vue-router'
+import api from '../../services/api'
 
 const auth = useAuth()
 const toast = useToast()
-const router = useRouter()
-const members = ref([...mockUsers])
+const members = ref([])
 const showForm = ref(false)
 const searchQuery = ref('')
 const filterStatus = ref('')
 const editingMember = ref(null)
 const imageInput = ref(null)
 const viewingMember = ref(null)
+const memberOrders = ref([])
 
-const memberOrders = computed(() =>
-  viewingMember.value
-    ? MOCK_HISTORY.filter(o => o.email === viewingMember.value.email)
-    : []
-)
-
-function viewOrders(member) {
-  viewingMember.value = member
+// ✅ โหลด members จาก API
+async function fetchMembers() {
+  try {
+    const res = await api.getAllMembers()
+    if (res.success) members.value = res.members
+  } catch (err) {
+    toast.show('❌ Failed to load members')
+  }
 }
 
-function goToOrder(orderId) {
-  viewingMember.value = null
-  router.push({ name: 'admin-orders', query: { order: orderId } })
+onMounted(() => fetchMembers())
+
+const currentUserEmail = computed(() => auth.user.value?.email)
+
+const isEditingOtherAdmin = computed(() =>
+  editingMember.value?.status === 'admin' &&
+  editingMember.value?.email !== currentUserEmail.value
+)
+
+const formData = ref({ email: '', name: '', password: '', status: 'member', image: '' })
+
+const filteredMembers = computed(() => members.value.filter(m => {
+  const matchSearch = !searchQuery.value ||
+    m.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    m.email?.toLowerCase().includes(searchQuery.value.toLowerCase())
+  const matchStatus = !filterStatus.value || m.status === filterStatus.value
+  return matchSearch && matchStatus
+}))
+
+function resetForm() {
+  showForm.value = false
+  editingMember.value = null
+  formData.value = { email: '', name: '', password: '', status: 'member', image: '' }
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+function editMember(member) {
+  editingMember.value = member
+  formData.value = { email: member.email, name: member.name, password: '', status: member.status, image: member.image || '' }
+  showForm.value = true
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ✅ save — ยังใช้ local update เพราะ backend ไม่มี PUT /admin/members
+function saveMember() {
+  if (editingMember.value) {
+    if (editingMember.value.email === currentUserEmail.value &&
+        editingMember.value.status === 'admin' &&
+        formData.value.status !== 'admin') {
+      toast.show('✗ Cannot remove your own admin privileges')
+      return
+    }
+    const index = members.value.findIndex(m => m.email === editingMember.value.email)
+    if (index !== -1) {
+      members.value[index] = {
+        ...editingMember.value,
+        name: formData.value.name,
+        status: isEditingOtherAdmin.value ? editingMember.value.status : formData.value.status,
+      }
+      toast.show('✓ Member updated')
+    }
+  }
+  resetForm()
+}
+
+// ✅ DELETE เชื่อม API จริง
+async function deleteMember(email) {
+  const member = members.value.find(m => m.email === email)
+  if (member?.status === 'admin') { toast.show('✗ Admin cannot be deleted'); return }
+  if (!confirm('Delete this member?')) return
+  try {
+    await api.deleteMember(email)
+    members.value = members.value.filter(m => m.email !== email)
+    toast.show('✓ Member deleted')
+  } catch (err) {
+    toast.show('❌ Failed to delete member')
+  }
+}
+
+// ✅ ดู orders ของ member จาก API จริง
+async function viewOrders(member) {
+  viewingMember.value = member
+  memberOrders.value = []
+  try {
+    const ordersRes = await api.getAllOrders()
+    if (ordersRes.success) {
+      // ✅ filter orders ของ member คนนี้
+      memberOrders.value = ordersRes.orders.filter(o => o.customer === member.email)
+    }
+  } catch (err) {
+    toast.show('❌ Failed to load orders')
+    memberOrders.value = []
+  }
 }
 
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const currentUserEmail = computed(() => auth.user.value?.email)
-
-const isEditingOtherAdmin = computed(() => {
-  return editingMember.value && 
-         editingMember.value.status === 'admin' && 
-         editingMember.value.email !== currentUserEmail.value
-})
-
-const formData = ref({
-  email: '',
-  name: '',
-  password: '',
-  status: 'member',
-  image: ''
-})
-
-// Filter members
-const filteredMembers = computed(() => {
-  return members.value.filter(member => {
-    const matchSearch = !searchQuery.value || 
-      member.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchStatus = !filterStatus.value || member.status === filterStatus.value
-    return matchSearch && matchStatus
-  })
-})
-
-// Reset form
-function resetForm() {
-  showForm.value = false
-  editingMember.value = null
-  formData.value = {
-    email: '',
-    name: '',
-    password: '',
-    status: 'member',
-    image: ''
-  }
-  if (imageInput.value) {
-    imageInput.value.value = ''
-  }
-}
-
-// Edit member
-function editMember(member) {
-  editingMember.value = member
-  formData.value = { 
-    email: member.email,
-    name: member.name,
-    password: '',
-    status: member.status,
-    image: member.image || ''
-  }
-  showForm.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-// Save member
-function saveMember() {
-  if (editingMember.value) {
-    // Prevent admin from removing their own admin status
-    if (editingMember.value.email === currentUserEmail.value && 
-        editingMember.value.status === 'admin' && 
-        formData.value.status !== 'admin') {
-      toast.show('✗ You cannot remove your own admin privileges')
-      return
-    }
-    
-    // Update existing member
-    const index = members.value.findIndex(m => m.email === editingMember.value.email)
-    if (index !== -1) {
-      members.value[index] = {
-        ...editingMember.value,
-        email: formData.value.email,
-        name: formData.value.name,
-        status: isEditingOtherAdmin.value ? editingMember.value.status : formData.value.status,
-        password: formData.value.password || editingMember.value.password,
-        image: formData.value.image || editingMember.value.image
-      }
-      toast.show('✓ Member updated successfully')
-    }
-  } else {
-    // Add new member
-    if (!formData.value.password) {
-      toast.show('✗ Password is required for new members')
-      return
-    }
-    const newMember = {
-      email: formData.value.email,
-      name: formData.value.name,
-      password: formData.value.password,
-      status: formData.value.status,
-      image: formData.value.image || ''
-    }
-    members.value.push(newMember)
-    toast.show('✓ Member added successfully')
-  }
-  resetForm()
-}
-
-// Delete member
-function deleteMember(email) {
-  const member = members.value.find(m => m.email === email)
-  if (member?.status === 'admin') {
-    toast.show('✗ Admin accounts cannot be deleted')
-    return
-  }
-  if (confirm('Are you sure you want to delete this member?')) {
-    members.value = members.value.filter(m => m.email !== email)
-    toast.show('✓ Member deleted successfully')
-  }
-}
-
-// Handle image upload
 function handleImageUpload(event) {
   const file = event.target.files?.[0]
   if (file) {
     const reader = new FileReader()
-    reader.onload = (e) => {
-      formData.value.image = e.target?.result || ''
-    }
+    reader.onload = (e) => { formData.value.image = e.target?.result || '' }
     reader.readAsDataURL(file)
   }
 }
 
-// Remove image
 function removeImage() {
   formData.value.image = ''
-  if (imageInput.value) {
-    imageInput.value.value = ''
-  }
+  if (imageInput.value) imageInput.value.value = ''
 }
 </script>
 

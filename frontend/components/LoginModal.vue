@@ -1,7 +1,11 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="modal.visible.value" class="modal-overlay" @click.self="modal.hide()">
+      <div 
+        v-if="modal.visible.value && !isAuthPage" 
+        class="modal-overlay" 
+        @click.self="modal.hide()"
+      >
         <div class="modal-box">
           <button class="modal-close" @click="modal.hide()">
             <span class="material-symbols-outlined">close</span>
@@ -25,11 +29,18 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useLoginModal } from '../stores/loginModal'
 
 const modal = useLoginModal()
 const router = useRouter()
+const route = useRoute()
+
+// ✅ ซ่อน modal อัตโนมัติเมื่ออยู่หน้า login/register
+const isAuthPage = computed(() => 
+  route.path === '/login' || route.path === '/register'
+)
 
 function goLogin() {
   modal.hide()

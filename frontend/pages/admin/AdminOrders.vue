@@ -41,29 +41,36 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in filteredOrders" :key="order.historyID">
-              <td class="order-id">{{ order.orderId }}</td>
-              <td>{{ getCustomerName(order.email) }}</td>
+            <tr v-for="order in filteredOrders" :key="order.orderId">
+              <td class="order-id">#{{ order.orderId }}</td>
+              <td class="customer-Email">{{ order.customer }}</td>
               <td>{{ formatDate(order.date) }}</td>
-              <td class="items-count">{{ order.products.length }} item(s)</td>
-              <td class="total">฿{{ order.total_price.toLocaleString() }}</td>
+              <td class="items-count">{{ order.items }} item(s)</td>
+              <td class="total">฿{{ Number(order.total).toLocaleString() }}</td>
               <td>
                 <div class="status-select-wrapper">
                   <select 
                     :value="order.status"
-                    @change="(e) => updateOrderStatus(order.historyID, e.target.value)"
+                    @change="(e) => updateOrderStatus(order.orderId, e.target.value)"
                     class="status-select"
                     :class="order.status.toLowerCase()"
                   >
-                    <option>Processing</option>
-                    <option>Delivered</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Delivered">Delivered</option>
+                    <!-- <option value="cancelled">Cancelled</option> -->
                   </select>
                 </div>
               </td>
               <td>
-                <button @click="selectedOrder = order" class="view-btn">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
+                <div class="action-buttons">
+                  <button @click="viewOrder(order)" class="action-btn view" title="View Details">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                  
+                  <button @click="confirmDelete(order.orderId)" class="action-btn delete" title="Delete Order">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -93,15 +100,11 @@
             <div class="info-grid">
               <div class="info-item">
                 <label>Order ID</label>
-                <p>{{ selectedOrder.orderId }}</p>
+                <p>#{{ selectedOrder.orderId }}</p>
               </div>
               <div class="info-item">
                 <label>Customer</label>
-                <p>{{ getCustomerName(selectedOrder.email) }}</p>
-              </div>
-              <div class="info-item">
-                <label>Email</label>
-                <p>{{ selectedOrder.email }}</p>
+                <p>{{ selectedOrder.customer }}</p>
               </div>
               <div class="info-item">
                 <label>Date</label>
@@ -109,7 +112,7 @@
               </div>
               <div class="info-item">
                 <label>Status</label>
-                <p class="status-badge" :class="selectedOrder.status.toLowerCase()">
+                <p class="status-badge" :class="selectedOrder.status?.toLowerCase()">
                   {{ selectedOrder.status }}
                 </p>
               </div>
@@ -119,7 +122,14 @@
           <!-- Products -->
           <div class="info-section">
             <h3>Products</h3>
-            <div class="products-table">
+            <div v-if="loadingDetail" style="text-align:center; padding:20px; color:var(--text-muted)">
+              Loading...
+            </div>
+            <div v-else-if="!selectedOrder.products?.length"
+                style="text-align:center; padding:20px; color:var(--text-muted)">
+              No products found
+            </div>
+            <div v-else class="products-table">
               <div class="table-header">
                 <div>Product Name</div>
                 <div>Qty</div>
@@ -129,8 +139,10 @@
               <div v-for="(product, i) in selectedOrder.products" :key="i" class="table-row">
                 <div>{{ product.pdName }}</div>
                 <div>{{ product.qty }}</div>
-                <div>฿{{ product.price.toLocaleString() }}</div>
-                <div class="subtotal">฿{{ (product.qty * product.price).toLocaleString() }}</div>
+                <div>฿{{ Number(product.pdPrice || product.price).toLocaleString() }}</div>
+                <div class="subtotal">
+                  ฿{{ (product.qty * Number(product.pdPrice || product.price)).toLocaleString() }}
+                </div>
               </div>
             </div>
           </div>
@@ -140,16 +152,8 @@
             <h3>Order Summary</h3>
             <div class="summary-grid">
               <div class="summary-row">
-                <span>Subtotal</span>
-                <span>฿{{ selectedOrder.total_price.toLocaleString() }}</span>
-              </div>
-              <div class="summary-row">
-                <span>Shipping</span>
-                <span>฿0.00</span>
-              </div>
-              <div class="summary-row total">
                 <span>Total</span>
-                <span>฿{{ selectedOrder.total_price.toLocaleString() }}</span>
+                <span>฿{{ Number(selectedOrder.total_price || selectedOrder.total).toLocaleString() }}</span>
               </div>
             </div>
           </div>
@@ -165,56 +169,116 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { MOCK_HISTORY, mockUsers } from '../../data/mockData'
 import { useToast } from '../../stores/toast'
 import { useRoute } from 'vue-router'
+import api from '../../services/api'
 
 const toast = useToast()
 const route = useRoute()
+const loading = ref(false)
+const loadingDetail = ref(false)
 const selectedStatus = ref('')
 const searchQuery = ref('')
 const selectedOrder = ref(null)
-const orders = ref([...MOCK_HISTORY])
+const orders = ref([])
 
-onMounted(() => {
+async function fetchOrders() {
+  loading.value = true
+  try {
+    const res = await api.getAllOrders()
+    if (res.success) orders.value = res.orders
+  } catch (error) {
+    toast.show('❌ Failed to load orders')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ✅ เรียก getOrderDetail เพื่อดึง products ใน order
+async function viewOrder(order) {
+  selectedOrder.value = { ...order, products: [], total_price: order.total }
+  loadingDetail.value = true
+  try {
+    const res = await api.getOrderDetail(order.orderId)
+    if (res.success) {
+      selectedOrder.value = {
+        ...order,
+        products: res.items,        // items จาก /transaction/detail/:cart_id
+        total_price: order.total,
+      }
+    }
+  } catch (err) {
+    toast.show('❌ Failed to load order details')
+  } finally {
+    loadingDetail.value = false
+  }
+}
+
+// เพิ่มฟังก์ชันสำหรับลบ Order
+async function confirmDelete(orderId) {
+  // 1. ถามเพื่อยืนยันการลบ
+  if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบออเดอร์ #${orderId}? การกระทำนี้ไม่สามารถย้อนกลับได้`)) {
+    return
+  }
+
+  try {
+    // 2. เรียก API ที่คุณเพิ่งเพิ่มใน backend
+    const res = await api.deleteOrder(orderId)
+    
+    if (res.success) {
+      // 3. อัปเดต UI ทันทีโดยการกรองออเดอร์ที่ถูกลบออกไปจาก List
+      orders.value = orders.value.filter(o => o.orderId !== orderId)
+      
+      toast.show(`✓ ลบออเดอร์ #${orderId} สำเร็จ`)
+    } else {
+      toast.show('❌ ไม่สามารถลบได้: ' + res.message)
+    }
+  } catch (error) {
+    console.error('Delete error:', error)
+    toast.show('❌ เกิดข้อผิดพลาดในการลบข้อมูล')
+  }
+}
+
+onMounted(async () => {
+  await fetchOrders()
+  // ✅ ถ้ามี query param ให้เปิด modal ตาม orderId
   if (route.query.order) {
-    selectedOrder.value = orders.value.find(o => o.orderId === route.query.order) || null
+    const found = orders.value.find(o => String(o.orderId) === String(route.query.order))
+    if (found) viewOrder(found)
   }
 })
 
-// Filter orders
 const filteredOrders = computed(() => {
   return orders.value.filter(order => {
     const matchStatus = !selectedStatus.value || order.status === selectedStatus.value
-    const matchSearch = !searchQuery.value || order.orderId.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchSearch = !searchQuery.value || 
+      String(order.orderId).includes(searchQuery.value)
     return matchStatus && matchSearch
   })
 })
 
-// Get customer name
-function getCustomerName(email) {
-  const user = mockUsers.find(u => u.email === email)
-  return user?.name || email
-}
-
-// Format date
 function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString('th-TH', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
   })
 }
 
-// Update order status
-function updateOrderStatus(historyID, newStatus) {
-  const order = orders.value.find(o => o.historyID === historyID)
-  if (order) {
-    order.status = newStatus
-    toast.show(`✓ Order ${order.orderId} updated to ${newStatus}`)
-    if (selectedOrder.value?.historyID === historyID) {
-      selectedOrder.value.status = newStatus
+async function updateOrderStatus(orderId, newStatus) {
+  try {
+    const res = await api.updateOrderStatus(orderId, newStatus)
+    if (res.success) {
+      const order = orders.value.find(o => o.orderId === orderId)
+      if (order) order.status = newStatus
+      // ✅ อัปเดต selectedOrder ด้วยถ้ากำลังเปิด modal อยู่
+      if (selectedOrder.value?.orderId === orderId) {
+        selectedOrder.value.status = newStatus
+      }
+      toast.show(`✓ อัปเดตออเดอร์ #${orderId} เป็น ${newStatus}`)
     }
+  } catch (error) {
+    toast.show('❌ Server error')
   }
 }
 </script>
@@ -563,6 +627,48 @@ function updateOrderStatus(historyID, newStatus) {
 
 .btn-secondary:hover {
   background: var(--primary-20);
+}
+
+/* คอนเทนเนอร์คุมปุ่มให้เรียงกัน */
+.action-buttons {
+  display: flex;
+  gap: 8px; /* ระยะห่างระหว่างปุ่ม */
+  align-items: center;
+}
+
+/* สไตล์พื้นฐานที่เหมือนกันของทั้งสองปุ่ม */
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--primary-10); /* พื้นหลังจางๆ สีหลัก */
+  border: 1px solid var(--primary); /* เส้นขอบสีหลัก */
+  border-radius: 6px;
+  color: var(--primary); /* ไอคอนสีหลัก */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+}
+
+.action-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* เอฟเฟกต์ตอนเอาเมาส์วาง (Hover) */
+.action-btn:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(212, 17, 50, 0.2);
+}
+
+/* (Option) ถ้าอยากให้ปุ่มลบตอน Hover เป็นสีแดงเข้มเพื่อเตือนความปลอดภัย */
+.action-btn.delete:hover {
+  background: #dc3545; /* สีแดง */
+  border-color: #dc3545;
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
 }
 
 @media (max-width: 768px) {

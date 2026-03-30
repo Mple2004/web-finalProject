@@ -13,8 +13,8 @@
         </div>
         <div class="metric-content">
           <p class="metric-label">Total Revenue</p>
-          <p class="metric-value">฿{{ totalRevenue.toLocaleString() }}</p>
-          <p class="metric-change positive">+{{ orderCount }} orders</p>
+          <p class="metric-value">฿{{ dashboardData.summary?.totalRevenue?.toLocaleString()|| '0' }}</p>
+          <p class="metric-change positive">+{{ dashboardData.summary?.totalOrders||0 }} orders</p>
         </div>
       </div>
 
@@ -25,8 +25,8 @@
         </div>
         <div class="metric-content">
           <p class="metric-label">total Seller</p>
-          <p class="metric-value">{{ totalItemsSold }}</p>
-          <p class="metric-change">Total units</p>
+          <p class="metric-value">{{ dashboardData.summary?.totalOrders || 0}}</p>
+          <p class="metric-change">Total units: {{ dashboardData.summary?.totalUnits || 0 }}</p>
         </div>
       </div>
 
@@ -36,9 +36,17 @@
         </div>
         <div class="metric-content">
           <p class="metric-label">Low Stock Alert</p>
-          <p class="metric-value">{{ lowStockCount }}</p>
+          <p class="metric-value">{{ dashboardData.summary?.lowStockCount || 0 }}</p>
           <p class="metric-change warning">Requires action</p>
         </div>
+        <!-- <div class="stock-alerts-list" v-if="dashboardData.stockAlerts.length > 0">
+          <h4>รายชื่อสินค้าที่ต้องเติม:</h4>
+          <ul>
+            <li v-for="item in dashboardData.stockAlerts" :key="item.pdID">
+              {{ item.pdName }} (เหลือเพียง {{ item.stock_qty }} ชิ้น)
+            </li>
+          </ul>
+        </div> -->
       </div>
     </div>
 
@@ -48,18 +56,18 @@
       <div class="card">
         <div class="card-header">
           <h2>Top 5 Best-Selling Products</h2>
-          <span class="badge">{{ topProducts.length }}</span>
+          <span class="badge">{{ dashboardData.topProducts?.length || 0 }}</span>
         </div>
         <div class="products-list">
-          <div v-for="(product, i) in topProducts" :key="i" class="product-row">
+          <div v-for="(product, i) in dashboardData.topProducts" :key="i" class="product-row">
             <div class="rank">{{ i + 1 }}</div>
             <div class="product-info">
               <p class="product-name">{{ product.pdName }}</p>
               <p class="product-category">{{ product.pdCategory }}</p>
             </div>
             <div class="product-stats">
-              <span class="sold">{{ product.totalSold }} sold</span>
-              <span class="revenue">฿{{ product.revenue.toLocaleString() }}</span>
+              <span class="sold">{{ product.soldQty }} sold</span>
+              <span class="revenue">฿{{ Number (product.totalSales).toLocaleString() }}</span>
             </div>
           </div>
         </div>
@@ -69,7 +77,7 @@
       <div class="card">
         <div class="card-header">
           <h2>Stock Alerts</h2>
-          <span class="badge warning">{{ lowStockProducts.length }}</span>
+          <span class="badge warning">{{ dashboardData.summary?.lowStockCount || 0 }}</span>
         </div>
         <div v-if="lowStockProducts.length === 0" class="empty-state">
           <span class="material-symbols-outlined">check_circle</span>
@@ -106,11 +114,11 @@
           <div class="col-total">Total</div>
           <div class="col-status">Status</div>
         </div>
-        <div v-for="order in recentOrders" :key="order.historyID" class="table-row">
+        <div v-for="order in allOrders" :key="order.orderId" class="table-row">
           <div class="col-order">{{ order.orderId }}</div>
-          <div class="col-customer">{{ getCustomerName(order.email) }}</div>
+          <div class="col-customer">{{ getCustomerName(order.customer) }}</div>
           <div class="col-date">{{ formatDate(order.date) }}</div>
-          <div class="col-total">฿{{ order.total_price.toLocaleString() }}</div>
+          <div class="col-total">฿{{ order.total.toLocaleString() }}</div>
           <div class="col-status">
             <span class="status-badge" :class="order.status.toLowerCase()">{{ order.status }}</span>
           </div>
@@ -121,78 +129,61 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { MOCK_HISTORY, MOCK_PRODUCTS, mockUsers } from '../../data/mockData'
+import { ref, computed, onMounted } from 'vue'
+import api from '../../services/api'
 
-// Calculate total revenue
-const totalRevenue = computed(() => {
-  return MOCK_HISTORY.reduce((sum, order) => sum + order.total_price, 0)
+// ✅ ประกาศ dashboardData ให้ตรงกับที่ template ใช้
+const dashboardData = ref({
+  summary: { totalRevenue: 0, totalOrders: 0, totalUnits: 0, lowStockCount: 0 },
+  topProducts: [],
+  stockAlerts: [],
 })
+const allOrders = ref([])
+const allMembers = ref([])
+const isLoading = ref(true)
 
-// Count total orders
-const orderCount = computed(() => MOCK_HISTORY.length)
+// ✅ computed สำหรับ lowStockProducts ที่ template ใช้
+const lowStockProducts = computed(() => dashboardData.value.stockAlerts || [])
 
-// Calculate total items sold
-const totalItemsSold = computed(() => {
-  return MOCK_HISTORY.reduce((sum, order) => {
-    return sum + order.products.reduce((pSum, p) => pSum + p.qty, 0)
-  }, 0)
-})
+const loadAdminData = async () => {
+  try {
+    isLoading.value = true
 
-// Get top 5 best-selling products
-const topProducts = computed(() => {
-  const productSales = {}
-  
-  MOCK_HISTORY.forEach(order => {
-    order.products.forEach(product => {
-      if (!productSales[product.pdId]) {
-        const fullProduct = MOCK_PRODUCTS.find(p => p.pdID === product.pdId)
-        productSales[product.pdId] = {
-          pdID: product.pdId,
-          pdName: product.pdName,
-          pdCategory: fullProduct?.pdCategory || 'Unknown',
-          totalSold: 0,
-          revenue: 0
-        }
+    const res = await api.dashboard()
+    if (res.success) {
+      dashboardData.value = {
+        summary: res.summary || {},
+        topProducts: res.topProducts || [],
+        stockAlerts: res.stockAlerts || [],
       }
-      productSales[product.pdId].totalSold += product.qty
-      productSales[product.pdId].revenue += product.qty * product.price
-    })
-  })
+    }
 
-  return Object.values(productSales)
-    .sort((a, b) => b.totalSold - a.totalSold)
-    .slice(0, 5)
-})
+    const ordersData = await api.getAllOrders()
+    if (ordersData.success) allOrders.value = ordersData.orders
 
-// Get low stock products (< 20 units)
-const lowStockProducts = computed(() => {
-  return MOCK_PRODUCTS.filter(p => p.stock_qty < 20).sort((a, b) => a.stock_qty - b.stock_qty)
-})
+    const membersData = await api.getAllMembers()
+    if (membersData.success) allMembers.value = membersData.members
 
-const lowStockCount = computed(() => lowStockProducts.value.length)
+  } catch (error) {
+    console.error('Error loading admin data:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
 
-// Get recent orders
-const recentOrders = computed(() => {
-  return [...MOCK_HISTORY]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5)
-})
+function formatDate(dateStr) {
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleDateString('th-TH')
+}
 
-// Get customer name from email
 function getCustomerName(email) {
-  const user = mockUsers.find(u => u.email === email)
-  return user?.name || email
+  const member = allMembers.value.find(m => m.email === email)
+  return member?.name || email || '-'
 }
 
-// Format date
-function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+onMounted(() => {
+  loadAdminData()
+})
 </script>
 
 <style scoped>

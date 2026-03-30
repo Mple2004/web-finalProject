@@ -25,6 +25,18 @@ export default {
   async logout() {
     await http.post('/members/logout')
   },
+  async updateProfile(name, newPassword) {
+  try {
+    const res = await http.put('/members/profile', { 
+      name: name, 
+      newPassword: newPassword 
+    })
+    return res.data
+  } catch (error) {
+    console.error('Error updateProfile:', error)
+    throw error
+  }
+},
 
   // ─── PRODUCTS ─────────────────────────────────────
   async getProducts() {
@@ -121,4 +133,88 @@ export default {
     const res = await http.post('/wishlist/toggle', { pdId, email })
     return res.data  // { message, isLiked: true/false }
   },
+
+  // ─── ADMIN ─────────────────────────────────────────
+
+  async dashboard(){
+    try {
+    const res = await http.get('/admin/dashboard')
+    return res.data // จะได้ { success, summary, topProducts, stockAlerts }
+    } catch (error) {
+      console.error('Error dashboard:', error)
+      throw error
+    }
+  },
+
+  async getAllOrders() {
+    try {
+      const res = await http.get('/admin/orders')
+      return res.data // จะได้ { success, orders }
+    } catch (error) {
+      console.error('Error getAllOrders:', error)
+      throw error
+    }
+  },
+
+  async updateOrderStatus(cartId, status) {
+    try {
+      const res = await http.put('/admin/orders/status', { cart_id: cartId, status })
+      return res.data // จะได้ { success, members }
+    } catch (error) {
+      console.error('Error updateOrderStatus:', error)
+      throw error
+    }
+  },
+
+  async getAllMembers() {
+    try {
+      const res = await http.get('/admin/members')
+      return res.data
+    } catch (error) {
+      console.error('Error getAllMembers:', error)
+      throw error
+    }
+  },
+
+  async updateMemberRole(memberId, newRole) {
+    try {
+      const res = await http.put('/admin/members/role', { member_id: memberId, new_role: newRole })
+      return res.data
+    } catch (error) {
+      console.error('Error updateMemberRole:', error)
+      throw error
+    }
+  },
+
+  // ─── ADMIN PRODUCTS ────────────────────────────────
+  async adminGetProducts() {
+    const res = await http.get('/products')
+    return res.data
+  },
+
+  async addProduct(data) {
+    const res = await http.post('/products', data)
+    return res.data
+  },
+
+  async updateProduct(pdID, data) {
+    const res = await http.put(`/products/${pdID}`, data)
+    return res.data
+  },
+
+  async deleteProduct(pdID) {
+    const res = await http.delete(`/products/${pdID}`)
+    return res.data
+  },
+
+  async deleteMember(email) {
+    const res = await http.delete(`/admin/members/${email}`)
+    return res.data
+  },
+
+  async deleteOrder(orderId) {
+    const res = await http.delete(`/admin/orders/${orderId}`)
+    return res.data
+  }
+  
 }

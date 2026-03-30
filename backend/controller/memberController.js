@@ -93,7 +93,8 @@ export const loginMember = async (req, res) => {
         secure: process.env.NODE_ENV === "production", // แก้: ใช้ false ใน dev เพื่อให้ cookie ส่งผ่าน HTTP ได้
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       });
-      res.json({ message: "Login Success", login: true, token: token });
+
+      res.json({ message: "Login Success", login: true, token: token, user: theuser });
     } else {
       return res.json({ message: "Login Fail", login: false });
     }
@@ -166,13 +167,14 @@ export const updateToAdmin = async (req, res) => {
   }
 };
 
+//TunUpdate
 // ฟังก์ชันสำหรับแก้ไขข้อมูลโปรไฟล์ (ชื่อ และ/หรือ รหัสผ่าน)
 export const updateProfile = async (req, res) => {
   console.log("PUT /members/profile is requested");
   
   // ดึง email จาก Token เพื่อความปลอดภัย (ป้องกันคนอื่นมาแก้โปรไฟล์เรา)
   const email = req.user.email; 
-  const { name, newPassword } = req.body;
+  const { name, currentPassword, newPassword } = req.body;
 
   try {
     // 1. ถ้ามีการส่งชื่อมาใหม่ ให้เปลี่ยนชื่อ
@@ -183,8 +185,23 @@ export const updateProfile = async (req, res) => {
       });
     }
 
+    // 1. ดึงข้อมูลผู้ใช้ปัจจุบันจาก DB มาเช็ครหัสผ่าน
+    const userRes = await database.query({
+      text: `SELECT password FROM "user" WHERE email = $1`,
+      values: [email]
+    });
+    const user = userRes.rows[0];
     // 2. ถ้ามีการส่งรหัสผ่านใหม่มาด้วย ให้เข้ารหัส (Hash) แล้วเปลี่ยนรหัสผ่าน
     if (newPassword && newPassword.trim() !== "") {
+      if (!currentPassword) {
+        return res.status(400).json({ success: false, message: "กรุณาระบุรหัสผ่านปัจจุบัน" });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+      }
+      
       const saltround = await bcrypt.genSalt(11);
       const pwdHash = await bcrypt.hash(newPassword, saltround);
       
