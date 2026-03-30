@@ -7,8 +7,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Wishlist
- *   description: ระบบจัดการรายการสินค้าที่ถูกใจ
+ *   - name: Wishlist
+ *     description: ระบบจัดการรายการสินค้าที่ถูกใจ
  */
 
 /**

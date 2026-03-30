@@ -193,6 +193,41 @@ export async function getCartDtl(req, res) {
   }
 }
 
+export async function updateCartDtlQty(req, res) {
+  try {
+    const { cart_id } = req.params;
+    const { pdId, qty } = req.body;
+    const newQty = Number(qty);
+
+    if (newQty <= 0) {
+      await database.query({
+        text: `DELETE FROM "cartDtl" WHERE cart_id = $1 AND "pdId" = $2`,
+        values: [cart_id, pdId],
+      });
+      return res.json({ ok: true });
+    }
+
+    const stockCheck = await database.query({
+      text: `SELECT stock_qty FROM products WHERE "pdID" = $1`,
+      values: [pdId],
+    });
+    if (stockCheck.rowCount === 0) return res.json({ ok: false, message: 'ไม่พบสินค้า' });
+
+    const stock = stockCheck.rows[0].stock_qty;
+    if (newQty > stock) {
+      return res.json({ ok: false, message: `มีสินค้าเหลือเพียง ${stock} ชิ้น` });
+    }
+
+    await database.query({
+      text: `UPDATE "cartDtl" SET qty = $1 WHERE cart_id = $2 AND "pdId" = $3`,
+      values: [newQty, cart_id, pdId],
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.json({ ok: false, message: err.message });
+  }
+}
+
 export async function getCartByCus(req, res) {
   console.log(`POST Cart By Customer is Requested`);
   try {

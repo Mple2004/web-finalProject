@@ -23,8 +23,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Products
- *   description: ระบบจัดการสินค้า
+ *   - name: Products
+ *     description: ระบบจัดการสินค้า
  */
 
 /**

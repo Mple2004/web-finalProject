@@ -73,12 +73,17 @@ export function useCart() {
     }
   }
 
-  function updateQty(id, delta) {
+  async function updateQty(id, delta) {
     const item = state.items.find(i => i.id === id)
     if (!item) return
-    item.qty += delta
-    if (item.qty <= 0) {
+    const newQty = item.qty + delta
+    if (newQty <= 0) {
       state.items = state.items.filter(i => i.id !== id)
+    } else {
+      item.qty = newQty
+    }
+    if (state.cartId) {
+      await api.updateCartQty(state.cartId, id, Math.max(0, newQty))
     }
   }
 

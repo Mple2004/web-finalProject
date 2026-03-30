@@ -52,9 +52,12 @@
                   <option value="delivered">delivered</option>
                 </select>
               </td>
-              <td>
-                <button @click="viewOrder(order)" class="view-btn">
+              <td class="action-cell">
+                <button @click="viewOrder(order)" class="view-btn" title="View">
                   <span class="material-symbols-outlined">visibility</span>
+                </button>
+                <button @click="deleteOrder(order)" class="delete-btn" title="Delete">
+                  <span class="material-symbols-outlined">delete</span>
                 </button>
               </td>
             </tr>
@@ -111,6 +114,9 @@
           </div>
         </div>
         <div class="modal-footer">
+          <button class="btn btn-danger" @click="deleteOrder(selectedOrder)">
+            <span class="material-symbols-outlined">delete</span> Delete Order
+          </button>
           <button class="btn btn-secondary" @click="selectedOrder = null">Close</button>
         </div>
       </div>
@@ -200,6 +206,22 @@ async function updateStatus(order, newStatus) {
   }
 }
 
+async function deleteOrder(order) {
+  if (!confirm(`Delete order #${order.orderId}? This cannot be undone.`)) return
+  try {
+    const res = await api.deleteOrder(order.orderId)
+    if (res.success) {
+      orders.value = orders.value.filter(o => o.orderId !== order.orderId)
+      if (selectedOrder.value?.orderId === order.orderId) selectedOrder.value = null
+      toast.show(`✓ Order #${order.orderId} deleted`)
+    } else {
+      toast.show(`✗ ${res.message || 'Failed to delete'}`)
+    }
+  } catch (err) {
+    toast.show(`✗ ${err.response?.data?.message || err.message}`)
+  }
+}
+
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
@@ -256,7 +278,15 @@ function formatDate(dateString) {
 .summary-grid { background:var(--primary-05); padding:12px; border-radius:var(--radius); }
 .summary-row { display:flex; justify-content:space-between; font-size:13px; color:var(--text-light); font-weight:700; }
 .modal-footer { padding:16px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
-.btn { padding:8px 16px; border-radius:var(--radius); font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all .2s; }
+.btn { padding:8px 16px; border-radius:var(--radius); font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all .2s; display:inline-flex; align-items:center; gap:6px; }
 .btn-secondary { background:var(--primary-10); color:var(--primary); border:1px solid var(--primary-20); }
 .btn-secondary:hover { background:var(--primary-20); }
+.btn-danger { background:rgba(211,47,47,.15); color:#ef5350; border:1px solid rgba(211,47,47,.3); }
+.btn-danger:hover { background:rgba(211,47,47,.3); }
+.btn .material-symbols-outlined { font-size:16px; }
+.action-cell { display:flex; gap:6px; align-items:center; }
+.delete-btn { padding:6px 8px; background:rgba(211,47,47,.1); border:1px solid rgba(211,47,47,.3); border-radius:4px; color:#ef5350; cursor:pointer; transition:all .2s; }
+.delete-btn:hover { background:rgba(211,47,47,.3); }
+.delete-btn .material-symbols-outlined { font-size:16px; }
+.modal-footer { display:flex; justify-content:space-between; align-items:center; }
 </style>

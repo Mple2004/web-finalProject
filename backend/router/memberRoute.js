@@ -18,8 +18,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Members
- *   description: ระบบจัดการสมาชิก
+ *   - name: Members
+ *     description: ระบบจัดการสมาชิก
  */
 
 /**

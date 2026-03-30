@@ -218,6 +218,23 @@ export async function updateOrderStatus(req, res) {
   }
 }
 
+export async function deleteOrder(req, res) {
+  if (req.user.status !== 'admin') {
+    return res.status(403).json({ message: "Forbidden: Admin only" });
+  }
+  const { cart_id } = req.params;
+  try {
+    await database.query(`DELETE FROM "cartDtl" WHERE cart_id = $1`, [cart_id]);
+    const result = await database.query(`DELETE FROM carts WHERE cart_id = $1 RETURNING cart_id`, [cart_id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "ไม่พบออเดอร์นี้" });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 export async function getMemberOrders(req, res) {
   if (req.user.status !== 'admin') {
     return res.status(403).json({ message: "Forbidden: Admin only" });

@@ -7,8 +7,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Carts
- *   description: ระบบจัดการตะกร้าสินค้า
+ *   - name: Carts
+ *     description: ระบบจัดการตะกร้าสินค้า
  */
 
 /**
@@ -195,5 +195,8 @@ router.get("/carts/getcartdtl/:id", cartC.getCartDtl);
  *         description: รายการตะกร้าทั้งหมดของลูกค้ารายนี้
  */
 router.post("/carts/getcartbycus", cartC.getCartByCus);
+
+router.put("/carts/cartdtl/:cart_id", authenticateToken, cartC.updateCartDtlQty);
+
 
 export default router;

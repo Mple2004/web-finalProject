@@ -101,6 +101,11 @@ export default {
     return res.data
   },
 
+  async updateCartQty(cartId, pdId, qty) {
+    const res = await http.put(`/carts/cartdtl/${cartId}`, { pdId, qty })
+    return res.data
+  },
+
   async getCartSum(cartId) {
     const res = await http.get(`/carts/sumcart/${cartId}`)
     return res.data
@@ -141,6 +146,11 @@ export default {
 
   async getAllOrders() {
     const res = await http.get('/admin/orders')
+    return res.data
+  },
+
+  async deleteOrder(cartId) {
+    const res = await http.delete(`/admin/order/${cartId}`)
     return res.data
   },
 

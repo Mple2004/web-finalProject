@@ -7,6 +7,7 @@ import {
   getAdminDashboard,
   getAllOrders,
   updateOrderStatus,
+  deleteOrder,
   getMemberOrders,
 } from "../controller/transactionController.js";
 import { authenticateToken } from "../middleware/auth.js";
@@ -16,8 +17,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Transactions
- *   description: ระบบจัดการการชำระเงินและประวัติคำสั่งซื้อ
+ *   - name: Transactions
+ *     description: ระบบจัดการการชำระเงินและประวัติคำสั่งซื้อ
  */
 
 /**
@@ -199,6 +200,7 @@ router.get("/admin/sales-summary", authenticateToken, getAdminSalesSummary);
 router.get("/admin/dashboard", authenticateToken, getAdminDashboard);
 router.get("/admin/orders", authenticateToken, getAllOrders);
 router.put("/admin/order/:cart_id/status", authenticateToken, updateOrderStatus);
+router.delete("/admin/order/:cart_id", authenticateToken, deleteOrder);
 router.get("/admin/member-orders/:email", authenticateToken, getMemberOrders);
 
 export default router;
