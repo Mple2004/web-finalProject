@@ -195,5 +195,49 @@ router.get("/carts/getcartdtl/:id", cartC.getCartDtl);
  *         description: รายการตะกร้าทั้งหมดของลูกค้ารายนี้
  */
 router.post("/carts/getcartbycus", cartC.getCartByCus);
+/**
+ * @swagger
+ * /carts/updateqty:
+ *   put:
+ *     summary: อัปเดตจำนวนสินค้าในตะกร้า
+ *     tags: [Carts]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cart_id:
+ *                 type: integer
+ *                 description: รหัสตะกร้าสินค้า
+ *                 example: 1
+ *               product_id:
+ *                 type: integer
+ *                 description: รหัสสินค้าที่ต้องการอัปเดตจำนวน
+ *                 example: 2
+ *               qty:
+ *                 type: integer
+ *                 description: จำนวนสินค้าใหม่
+ *                 example: 3
+ *     responses:
+ *       200:
+ *         description: อัปเดตจำนวนสินค้าสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 updateOK:
+ *                   type: boolean
+ *                   example: true
+ *       401:
+ *         description: ไม่มีสิทธิ์เข้าถึง (Token ไม่ถูกต้อง)
+ *       404:
+ *         description: ไม่พบสินค้าในตะกร้านี้
+ */
+router.put("/carts/updateqty", authenticateToken, cartC.updateCartQty);
 
 export default router;
