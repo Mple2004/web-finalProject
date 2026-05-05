@@ -8,11 +8,11 @@
       </router-link>
 
       <!-- Links -->
-      <div class="d-flex gap-4">
-        <router-link to="/category/beer" class="text-decoration-none" style="color:#a89880">Beer</router-link>
-        <router-link to="/category/wine" class="text-decoration-none" style="color:#a89880">Wine</router-link>
-        <router-link to="/category/Whisky" class="text-decoration-none" style="color:#a89880">Whisky</router-link>
-        <router-link to="/contact" class="text-decoration-none" style="color:#a89880">Contact Us</router-link>
+      <div class="nav-links">
+        <router-link to="/category/beer" class="nav-link">Beer</router-link>
+        <router-link to="/category/wine" class="nav-link">Wine</router-link>
+        <router-link to="/category/Whisky" class="nav-link">Whisky</router-link>
+        <router-link to="/contact" class="nav-link">Contact Us</router-link>
       </div>
 
       <!-- Search + Icons -->
@@ -36,9 +36,12 @@
           </div>
           
           <!-- Suggestions Dropdown -->
-          <div v-if="showSuggestions && searchQuery && filteredSuggestions.length" class="suggestions-list">
-            <div 
-              v-for="product in filteredSuggestions.slice(0, 5)" 
+          <div v-if="showSuggestions && searchQuery && (isSearching || filteredSuggestions.length)" class="suggestions-list">
+            <div v-if="isSearching" class="suggestion-loading">
+              <span class="spinner"></span> Searching...
+            </div>
+            <div
+              v-for="product in filteredSuggestions.slice(0, 5)"
               :key="product.pdID"
               class="suggestion-item"
               @click="goToProduct(product.pdID)"
@@ -151,7 +154,7 @@
 
 <script setup>
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCart } from '../stores/cart'
 import { useAuth } from '../stores/auth'
@@ -174,6 +177,8 @@ const isSearching = ref(false)
 
 // ---- Debounce helper ----
 let debounceTimer = null
+onUnmounted(() => clearTimeout(debounceTimer))
+
 const debouncedFetch = () => {
   clearTimeout(debounceTimer)
   const q = searchQuery.value.trim()
@@ -245,6 +250,29 @@ const logout = async () => {
 </script>
 
 <style scoped>
+.nav-links { display: flex; gap: 32px; }
+.nav-link {
+  color: #a89880;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+  padding-bottom: 2px;
+  transition: color 0.2s;
+}
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0; right: 0;
+  height: 1px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transition: transform 0.25s ease;
+  transform-origin: left;
+}
+.nav-link:hover, .nav-link.router-link-active { color: white; }
+.nav-link:hover::after, .nav-link.router-link-active::after { transform: scaleX(1); }
+
 .dropdown-item:hover {
   background: #3a2e1e !important;
   color: white !important;

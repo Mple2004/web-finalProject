@@ -19,7 +19,7 @@
       <!-- Form -->
       <form @submit.prevent="handleSubmit">
         <div class="mb-3">
-          <label class="field-label">Full Name</label>
+          <label class="field-label">Name</label>
           <input
             v-model="form.name"
             type="text"
@@ -77,7 +77,7 @@
 
       <p class="text-center mt-4 mb-0 auth-card-sub" style="font-size:0.9rem;">
         Already have an account?
-        <router-link to="/login" class="gold-link ms-1">Sign In</router-link>
+        <router-link to="/login" class="gold-link ms-1">LogIn</router-link>
       </p>
 
     </div>

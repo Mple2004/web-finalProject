@@ -38,10 +38,9 @@
             <label for="status-filter">Filter by Status:</label>
             <select v-model="selectedStatus" id="status-filter" class="filter-select">
               <option value="">All Statuses</option>
-              <option value="Processing">Processing</option>
-              <option value="Shipped">Shipped</option>
+              <option value="PAID">PAID</option>
               <option value="Delivered">Delivered</option>
-              <option value="Cancelled">Cancelled</option>
+
             </select>
           </div>
           <div class="filter-info">Total: {{ filteredOrders.length }} order(s)</div>

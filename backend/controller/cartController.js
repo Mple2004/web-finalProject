@@ -176,13 +176,15 @@ export async function getCartDtl(req, res) {
   try {
     const result = await database.query({
       text: `SELECT ROW_NUMBER() OVER (ORDER BY ctd."pdId") AS row_number,
-                    ctd."pdId", 
-                    pd."pdName", 
-                    ctd.qty, 
+                    ctd."pdId",
+                    pd."pdName",
+                    pd."pdImage",
+                    pd."pdSize",
+                    ctd.qty,
                     ctd.price,
-                    (ctd.qty * ctd.price) AS total_price -- เพิ่มการคำนวณราคารวมตรงนี้
-             FROM "cartDtl" ctd 
-             LEFT JOIN "products" pd ON ctd."pdId" = pd."pdID"  
+                    (ctd.qty * ctd.price) AS total_price
+             FROM "cartDtl" ctd
+             LEFT JOIN "products" pd ON ctd."pdId" = pd."pdID"
              WHERE ctd.cart_id = $1
              ORDER BY ctd."pdId"`,
       values: [req.params.id],

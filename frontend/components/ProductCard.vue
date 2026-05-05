@@ -53,22 +53,28 @@ const cart = useCart()
 
 const isWishlisted = ref(false)
 const justAdded = ref(false)
+const isAdding = ref(false)
 
 async function handleAddToCart() {
-  if (justAdded.value) return
+  if (isAdding.value || justAdded.value) return
   if (props.product.stock <= 0) {
     toast.show('สินค้าหมดแล้ว')
     return
   }
   if (!auth.isLoggedIn.value) { loginModal.show(); return }
-  const res = await cart.add(props.product)
-  if (res?.cartDtlOK === false) {
-    toast.show(`✗ ${res.messageAddCartDtl || 'สินค้าหมดแล้ว'}`)
-    return
+  isAdding.value = true
+  try {
+    const res = await cart.add(props.product)
+    if (res?.cartDtlOK === false) {
+      toast.show(`✗ ${res.messageAddCartDtl || 'สินค้าหมดแล้ว'}`)
+      return
+    }
+    emit('add-to-cart', props.product)
+    justAdded.value = true
+    setTimeout(() => { justAdded.value = false }, 1200)
+  } finally {
+    isAdding.value = false
   }
-  emit('add-to-cart', props.product)
-  justAdded.value = true
-  setTimeout(() => { justAdded.value = false }, 1200)
 }
 
 // ✅ โหลดสถานะ wishlist ตอน mount

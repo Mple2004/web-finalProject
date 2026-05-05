@@ -67,6 +67,11 @@ router.beforeEach(async (to, from) => {
     return { name: 'home' }
   }
 
+  // Admin users are restricted to /admin pages only
+  if (auth.isLoggedIn.value && auth.user.value?.status === 'admin' && !to.path.startsWith('/admin')) {
+    return { name: 'admin-dashboard' }
+  }
+
   if (to.meta.guestOnly && auth.isLoggedIn.value) {
     return { name: 'home' }
   }

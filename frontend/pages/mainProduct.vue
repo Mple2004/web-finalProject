@@ -97,25 +97,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'  // เพิ่ม reactive
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import api from '../services/api'
-import { useCart } from '../stores/cart'
 import { useToast } from '../stores/toast'
 import { useAuth } from '../stores/auth'
-import { useLoginModal } from '../stores/loginModal'
 import ProductCard from '../components/ProductCard.vue'
 
-const router = useRouter()
-const cart = useCart()
 const toast = useToast()
 const auth = useAuth()
-const loginModal = useLoginModal()
 
 const products = ref([])      // Featured (top 4 by rating)
-const bestSellers = ref([])   // Best Sellers (top 4 by id หรือ field อื่น)
+const bestSellers = ref([])   // Best Sellers (top 4 by reviews)
 const loading = ref(true)
-const wishlist = reactive(new Set())
 
 // ── CATEGORY_CARDS คงไว้เป็น static เพราะเป็นแค่รูปตกแต่ง ──
 const CATEGORY_CARDS = [
@@ -143,13 +136,12 @@ function mapProduct(p) {
   }
 }
 
-function toggleWish(id) {
-  wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id)
-}
-
 onMounted(async () => {
   try {
-    const data = await api.getProducts()
+    const [data, rankings] = await Promise.all([
+      api.getProducts(),
+      api.getProductRankings().catch(() => ({})),
+    ])
     const raw = (Array.isArray(data) ? data : (data.data ?? [])).map(mapProduct)
 
     // Featured — top 4 by rating
@@ -157,9 +149,13 @@ onMounted(async () => {
       .sort((a, b) => b.rating - a.rating)
       .slice(0, 4)
 
-    // Best Sellers — top 4 by reviews (ถ้า backend ไม่มี field นี้ใช้ sort by id desc แทน)
+    // Best Sellers — top 4 by actual units sold from orders
     bestSellers.value = [...raw]
-      .sort((a, b) => b.reviews - a.reviews || b.id - a.id)
+      .sort((a, b) => {
+        const soldA = rankings[a.id]?.sold ?? 0
+        const soldB = rankings[b.id]?.sold ?? 0
+        return soldB - soldA
+      })
       .slice(0, 4)
 
   } catch (err) {
@@ -169,11 +165,7 @@ onMounted(async () => {
   }
 })
 
-const goToProduct = (id) => router.push({ name: 'product-detail', params: { id } })
-
 function addToCart(product) {
-  if (!auth.isLoggedIn.value) { loginModal.show(); return }
-  cart.add(product)
   toast.show(`✓ Added "${product.name}"`)
 }
 </script>
@@ -235,145 +227,6 @@ function addToCart(product) {
   gap: 32px;
 }
 
-/* Product Card */
-.product-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  cursor: pointer;
-  background: var(--bg-surface);
-  border-radius: 16px;
-  overflow: hidden;
-  border: none;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.product-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 48px rgba(0,0,0,0.5), 0 4px 16px rgba(212,17,50,0.12);
-}
-.card-img-wrap {
-  position: relative;
-  aspect-ratio: 3 / 4;
-  border-radius: 0;
-  overflow: hidden;
-  background: var(--bg-surface);
-}
-.card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
-.product-card:hover .card-img {
-  transform: scale(1.08);
-}
-.card-tag {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  padding: 4px 12px;
-  background: var(--accent-gold);
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  border-radius: 4px;
-  z-index: 2;
-}
-.wishlist-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  padding: 8px;
-  border-radius: 50%;
-  background: rgba(26, 11, 13, 0.8);
-  color: white;
-  backdrop-filter: blur(8px);
-  z-index: 2;
-  transition: color 0.2s;
-  border: none;
-  cursor: pointer;
-}
-.wishlist-btn:hover {
-  color: var(--primary);
-}
-
-/* Hover action: slide-up Add to Cart */
-.hover-action {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 16px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-  z-index: 3;
-}
-.product-card:hover .hover-action {
-  transform: translateY(0);
-}
-.add-cart-btn {
-  width: 100%;
-  padding: 12px;
-  background: var(--primary);
-  color: white;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  transition: background 0.2s;
-  border: none;
-  cursor: pointer;
-}
-.add-cart-btn:hover { background: rgba(212, 17, 50, 0.8); }
-
-/* Card Info */
-.card-info { padding: 16px 18px 20px; }
-.card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-.card-name {
-  font-size: 16px;
-  font-weight: 700;
-  transition: color 0.2s;
-  line-height: 1.3;
-  margin: 0;
-}
-.product-card:hover .card-name { color: var(--primary); }
-.card-price {
-  color: var(--accent-gold);
-  font-weight: 800;
-  font-size: 16px;
-  white-space: nowrap;
-}
-.card-meta {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: 6px;
-  margin-bottom: 0;
-}
-.card-stars {
-  display: flex;
-  gap: 2px;
-  margin-top: 10px;
-}
-.star {
-  font-size: 15px;
-  color: var(--text-dim);
-}
-.star.filled {
-  color: var(--accent-gold);
-  font-variation-settings: 'FILL' 1, 'wght' 400;
-}
-.review-count {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-left: 4px;
-  align-self: center;
-}
 .bestseller {
   background: #261316;
   padding: 80px 0;

@@ -96,8 +96,16 @@ function handleCheckout() {
 .item-info { flex: 1; min-width: 0; }
 .item-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item-price { font-size: 14px; font-weight: 700; color: var(--primary); }
-.qty-controls { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
-.qty-val { font-size: 12px; font-weight: 700; width: 16px; text-align: center; }
+.qty-controls { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.qty-btn {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--primary-10); border: 1px solid var(--primary-20);
+  color: var(--text-light); font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.qty-btn:hover { background: var(--primary); color: white; }
+.qty-val { font-size: 13px; font-weight: 700; width: 20px; text-align: center; color: var(--text-white); }
 .sidebar-footer { padding: 24px; border-top: 1px solid var(--border); }
 .total-row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 16px; }
 .total-price { color: var(--primary); font-size: 18px; }

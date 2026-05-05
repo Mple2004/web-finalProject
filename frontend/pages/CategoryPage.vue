@@ -91,7 +91,7 @@
                   <span v-if="p.oldPrice" class="list-old">฿{{ p.oldPrice.toLocaleString() }}</span>
                   <p class="list-meta">{{ p.volume }} | {{ p.abv }}</p>
                 </div>
-                <button class="list-cart-btn" @click.stop="handleAdd(p)">
+                <button class="list-cart-btn" @click.stop="handleListAdd(p)">
                   <span class="material-symbols-outlined">add_shopping_cart</span>
                 </button>
               </div>
@@ -114,17 +114,15 @@
 
          
 
-          <span
-            v-for="item in pageItems.filter(i => i.isDot)"
-            :key="item.key"
-            class="page-dots"
-          >...</span>
-          <button
-            v-for="item in pageItems.filter(i => !i.isDot)"
-            :key="item.key"
-            :class="['page-btn', 'page-num', { active: page === item.pg }]"
-            @click="page = item.pg"
-          >{{ item.pg }}</button>
+          <template v-for="item in pageItems">
+            <span v-if="item.isDot" :key="'d-' + item.key" class="page-dots">...</span>
+            <button
+              v-if="!item.isDot"
+              :key="'p-' + item.key"
+              :class="['page-btn', 'page-num', { active: page === item.pg }]"
+              @click="page = item.pg"
+            >{{ item.pg }}</button>
+          </template>
 
           <button class="page-btn" :disabled="page === totalPages" @click="page = Math.min(totalPages, page + 1)">
             <span class="material-symbols-outlined">chevron_right</span>
@@ -136,22 +134,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
-import { useCart } from '../stores/cart'
 import { useToast } from '../stores/toast'
 import { useAuth } from '../stores/auth'
 import { useLoginModal } from '../stores/loginModal'
+import { useCart } from '../stores/cart'
 import ProductCard from '../components/ProductCard.vue'
 import SidebarFilter from '../components/SidebarFilter.vue'
 
 const router = useRouter()
 const route = useRoute()
-const cart = useCart()
 const toast = useToast()
 const auth = useAuth()
 const loginModal = useLoginModal()
+const cart = useCart()
 
 const loading = ref(true)
 const allProducts = ref([])       // สินค้าของ category ที่กำลังดูอยู่
@@ -167,8 +165,9 @@ const sortBy = ref('popular')
 const viewMode = ref('grid')
 const page = ref(1)
 const perPage = 9
-const wishlist = reactive(new Set())
-const heroImage = ''
+const heroImage = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCXvHtZoUBxZ-34HMb2u1M7x82npjd_d82rF1j_aZdVYR3SHMqP3jQFTxIHv62qMdYWEzQMfugGlrxKfKyKRFMRR0HejcmG2Xoqw3H-y52xn9E67jy36PQ7Zy1uxdb7kbQA5wE82qmuN3VrCh-MSpDyIVRkvA1uwAso5oq9WtozY4Y0NV3Cf1mCz3VOgM1VS4F9D0M7b-UiECEkgZ5erbLB5jiU0Pqg7LC3ArjIerRTNAVhyiCTpZfl3aYFmI2KVziZebOb7OslMro'
+
+
 
 function mapProduct(p) {
   return {
@@ -324,14 +323,20 @@ watch(() => [route.params.id, route.query.sub, route.query.search, route.query.s
   loadProducts(mainCategory.value, search)
 }, { immediate: true })
 
+// Called by ProductCard emit — cart already added inside ProductCard, just show toast
 function handleAdd(p) {
-  if (!auth.isLoggedIn.value) { loginModal.show(); return }
-  cart.add(p)
   toast.show(`✓ Added "${p.name}"`)
 }
 
-function toggleWish(id) {
-  wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id)
+// Called directly by list-view button — must add to cart itself
+async function handleListAdd(p) {
+  if (!auth.isLoggedIn.value) { loginModal.show(); return }
+  const res = await cart.add(p)
+  if (res?.cartDtlOK === false) {
+    toast.show(`✗ ${res.messageAddCartDtl || 'สินค้าหมดแล้ว'}`)
+    return
+  }
+  toast.show(`✓ Added "${p.name}"`)
 }
 
 function handleSelectMainCategory(category) {
